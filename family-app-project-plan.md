@@ -45,7 +45,7 @@
 2. Google 導回前端指定的 redirect URI（**必須是完整頁面網址，不能帶 `#fragment`**，跟 GitHub OAuth 不同），帶上 `code`
 3. 前端把 `code` 傳給 Cloudflare Worker（`POST /api/auth/callback`）
 4. Worker 用 `Client Secret` 向 Google 交換 `access_token`，並取得使用者資訊（name、email、頭像）
-4.5. Worker 檢查 email 是否在 `ALLOWED_EMAILS` 白名單裡（逗號分隔的 Worker secret），不在就回 403，不發 session——這是除了 Google OAuth consent screen 的 Test users 名單之外的第二層防護，兩者分開維護
+4.5. Worker 檢查登入權限——email 等於 `OWNER_EMAIL`（Worker secret，只有一組，代表你自己）就一定放行；否則查 `data/access.json` 的 `approved` 清單，在名單上才放行。**都不是的話不會直接拒絕**，而是把這次申請（email/name/頭像/時間）加進 `access.json` 的 `pending` 佇列，回應「已送出申請，請等待同意」，不發 session。你（`OWNER_EMAIL`）登入後可以在 `/admin` 頁面看到待審核清單，按「同意」才會把對方加進 `approved`。這是刻意選的設計——不想維護一份寫死的名單，而是每個新面孔都要你親自同意
 5. Worker 簽發一組短期 session（JWT）回給前端，前端存在瀏覽器裡代表「已登入」
 6. 之後家人做以下任一動作時，前端呼叫 Worker 對應 API，並帶上 session：
    - 新增/編輯佈告欄留言 → `POST /api/board`
@@ -70,11 +70,23 @@ repo/
 ├── data/
 │   ├── board.json       # 佈告欄
 │   ├── recipes.json     # 食譜索引
-│   └── orders.json      # 點菜訂單清單
+│   ├── orders.json      # 點菜訂單清單
+│   └── access.json      # 登入權限：approved 清單 + 待審核 pending 佇列
 └── images/
     └── recipes/
         └── {recipeId}.jpg
 ```
+
+### `data/access.json`
+```json
+{
+  "approved": ["family-member@gmail.com"],
+  "pending": [
+    { "email": "new-person@gmail.com", "name": "顯示名稱", "avatar": "頭像網址", "requestedAt": "2026-07-18T12:00:00Z" }
+  ]
+}
+```
+> `OWNER_EMAIL`（Worker secret）不會出現在這個檔案裡——擁有者永遠放行，不需要進 `approved` 清單。
 
 ### `data/board.json`
 ```json

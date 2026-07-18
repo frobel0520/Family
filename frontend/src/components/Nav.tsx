@@ -10,6 +10,7 @@ const TABS = [
 
 export function Nav() {
 	const { session, login, logout } = useAuth();
+	const tabs = session?.isOwner ? [...TABS, { to: "/admin", icon: "🛡️", label: "審核" }] : TABS;
 
 	return (
 		<>
@@ -34,7 +35,7 @@ export function Nav() {
 			</header>
 
 			<nav className="tabs">
-				{TABS.map((tab) => (
+				{tabs.map((tab) => (
 					<NavLink key={tab.to} to={tab.to} end={tab.end}>
 						<span className="tab-icon">{tab.icon}</span>
 						{tab.label}

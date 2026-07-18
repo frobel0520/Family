@@ -3,6 +3,7 @@ import { handleMe } from "./routes/me";
 import { handleListBoardPosts, handleCreateBoardPost } from "./routes/board";
 import { handleListRecipes, handleCreateRecipe } from "./routes/recipes";
 import { handleListOrders, handleCreateOrder } from "./routes/orders";
+import { handleListPending, handleApprove, handleDeny } from "./routes/admin";
 import { jsonResponse } from "./response";
 import { handlePreflight, withCors } from "./cors";
 
@@ -39,6 +40,18 @@ async function route(request: Request, env: Env): Promise<Response> {
 
 	if (request.method === "POST" && url.pathname === "/api/orders") {
 		return handleCreateOrder(request, env);
+	}
+
+	if (request.method === "GET" && url.pathname === "/api/admin/pending") {
+		return handleListPending(request, env);
+	}
+
+	if (request.method === "POST" && url.pathname === "/api/admin/approve") {
+		return handleApprove(request, env);
+	}
+
+	if (request.method === "POST" && url.pathname === "/api/admin/deny") {
+		return handleDeny(request, env);
 	}
 
 	return jsonResponse({ error: "Not found" }, 404);

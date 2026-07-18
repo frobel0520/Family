@@ -1,4 +1,4 @@
-import type { BoardPost, Order, Recipe } from "./types";
+import type { BoardPost, Order, PendingRequest, Recipe } from "./types";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL;
 
@@ -45,4 +45,21 @@ export const createOrder = (token: string, dishName: string) =>
 		method: "POST",
 		headers: authHeaders(token),
 		body: JSON.stringify({ dishName }),
+	});
+
+export const listPendingRequests = (token: string) =>
+	request<PendingRequest[]>("/api/admin/pending", { headers: authHeaders(token) });
+
+export const approveRequest = (token: string, email: string) =>
+	request<{ ok: true }>("/api/admin/approve", {
+		method: "POST",
+		headers: authHeaders(token),
+		body: JSON.stringify({ email }),
+	});
+
+export const denyRequest = (token: string, email: string) =>
+	request<{ ok: true }>("/api/admin/deny", {
+		method: "POST",
+		headers: authHeaders(token),
+		body: JSON.stringify({ email }),
 	});

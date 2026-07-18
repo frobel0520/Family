@@ -23,3 +23,18 @@ export async function requireSession(
 
 	return { session };
 }
+
+/** Like requireSession, but also rejects (403) anyone who isn't the app owner. */
+export async function requireOwner(
+	request: Request,
+	env: Env,
+): Promise<{ session: SessionPayload } | { response: Response }> {
+	const auth = await requireSession(request, env);
+	if ("response" in auth) return auth;
+
+	if (!auth.session.isOwner) {
+		return { response: jsonResponse({ error: "Owner only" }, 403) };
+	}
+
+	return auth;
+}
