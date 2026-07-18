@@ -1,6 +1,7 @@
 import { exchangeCodeForAccessToken, fetchGoogleUser, GoogleOAuthError } from "../google-oauth";
 import { signSession } from "../jwt";
 import { jsonResponse } from "../response";
+import { isAllowedEmail } from "../allowlist";
 
 const SESSION_TTL_SECONDS = 60 * 60 * 24; // 24h — short-lived, family members just re-login via Google
 
@@ -27,6 +28,10 @@ export async function handleAuthCallback(request: Request, env: Env): Promise<Re
 			env.GOOGLE_CLIENT_SECRET,
 		);
 		const user = await fetchGoogleUser(accessToken);
+
+		if (!isAllowedEmail(env, user.email)) {
+			return jsonResponse({ error: "此帳號未被授權使用這個家庭應用程式" }, 403);
+		}
 
 		const token = await signSession(
 			{ sub: user.id, name: user.name, avatar: user.avatar },

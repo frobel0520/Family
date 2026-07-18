@@ -4,3 +4,4 @@ JWT_SECRET=
 GITHUB_BOT_PAT=
 GITHUB_REPO=owner/repo
 ALLOWED_ORIGIN=https://your-username.github.io
+ALLOWED_EMAILS=you@example.com,family-member@example.com

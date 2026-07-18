@@ -44,7 +44,8 @@
 1. 前端「登入」按鈕 → 導向 Google OAuth 授權頁（需先在 Google Cloud Console 建立一個 OAuth Client，取得 `Client ID` / `Client Secret`）
 2. Google 導回前端指定的 redirect URI（**必須是完整頁面網址，不能帶 `#fragment`**，跟 GitHub OAuth 不同），帶上 `code`
 3. 前端把 `code` 傳給 Cloudflare Worker（`POST /api/auth/callback`）
-4. Worker 用 `Client Secret` 向 Google 交換 `access_token`，並取得使用者資訊（name、頭像）
+4. Worker 用 `Client Secret` 向 Google 交換 `access_token`，並取得使用者資訊（name、email、頭像）
+4.5. Worker 檢查 email 是否在 `ALLOWED_EMAILS` 白名單裡（逗號分隔的 Worker secret），不在就回 403，不發 session——這是除了 Google OAuth consent screen 的 Test users 名單之外的第二層防護，兩者分開維護
 5. Worker 簽發一組短期 session（JWT）回給前端，前端存在瀏覽器裡代表「已登入」
 6. 之後家人做以下任一動作時，前端呼叫 Worker 對應 API，並帶上 session：
    - 新增/編輯佈告欄留言 → `POST /api/board`
