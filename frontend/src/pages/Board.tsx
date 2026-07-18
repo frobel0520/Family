@@ -2,6 +2,9 @@ import { useEffect, useState } from "react";
 import { useAuth } from "../auth/AuthContext";
 import { createBoardPost, listBoardPosts } from "../api";
 import type { BoardPost } from "../types";
+import { Pager } from "../components/Pager";
+
+const PAGE_SIZE = 5;
 
 function formatTime(iso: string): string {
 	return new Date(iso).toLocaleString("zh-TW");
@@ -15,6 +18,7 @@ export function Board() {
 	const [content, setContent] = useState("");
 	const [submitting, setSubmitting] = useState(false);
 	const [submitError, setSubmitError] = useState<string | null>(null);
+	const [page, setPage] = useState(1);
 
 	useEffect(() => {
 		listBoardPosts()
@@ -33,12 +37,16 @@ export function Board() {
 			const newPost = await createBoardPost(session.token, content.trim());
 			setPosts((prev) => [newPost, ...prev]);
 			setContent("");
+			setPage(1); // new post sorts first — jump back to page 1 so it's visible
 		} catch (err) {
 			setSubmitError((err as Error).message);
 		} finally {
 			setSubmitting(false);
 		}
 	}
+
+	const totalPages = Math.max(1, Math.ceil(posts.length / PAGE_SIZE));
+	const visiblePosts = posts.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
 	return (
 		<div className="page">
@@ -65,7 +73,7 @@ export function Board() {
 			{loadError && <p className="error">載入失敗：{loadError}</p>}
 
 			<ul className="board-list">
-				{posts.map((post) => (
+				{visiblePosts.map((post) => (
 					<li key={post.id} className="board-post">
 						<div className="board-post-meta">
 							<strong>{post.author}</strong> · {formatTime(post.createdAt)}
@@ -75,6 +83,8 @@ export function Board() {
 				))}
 			</ul>
 			{!loading && posts.length === 0 && <p className="hint">還沒有留言。</p>}
+
+			<Pager page={page} totalPages={totalPages} onChange={setPage} />
 		</div>
 	);
 }
