@@ -3,6 +3,7 @@ import { useAuth } from "../auth/AuthContext";
 import { createOrder, listOrders, listRecipes } from "../api";
 import type { Order, Recipe } from "../types";
 import { RECIPE_CATEGORIES } from "../recipeCategories";
+import { RecipePhoto } from "../components/RecipePhoto";
 
 export function Orders() {
 	const { session } = useAuth();
@@ -75,7 +76,7 @@ export function Orders() {
 					{searched &&
 						results.map((recipe) => (
 							<div key={recipe.id} className="recipe-card">
-								<img src={recipe.photoUrl} alt={recipe.name} />
+								<RecipePhoto photoUrl={recipe.photoUrl} name={recipe.name} />
 								<div className="recipe-name">{recipe.name}</div>
 								<button
 									type="button"
