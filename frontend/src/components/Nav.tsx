@@ -19,8 +19,8 @@ export function Nav() {
 				<div className="nav-auth">
 					{session ? (
 						<>
-							<img src={session.avatar} alt={session.username} className="nav-avatar" />
-							<span className="username">{session.username}</span>
+							<img src={session.avatar} alt={session.name} className="nav-avatar" />
+							<span className="username">{session.name}</span>
 							<button type="button" className="logout" onClick={logout}>
 								登出
 							</button>

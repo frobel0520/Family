@@ -1,6 +1,6 @@
 export interface Session {
 	token: string;
-	username: string;
+	name: string;
 	avatar: string;
 	expiresAt: number; // epoch ms
 }

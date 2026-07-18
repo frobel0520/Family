@@ -29,7 +29,8 @@ async function hmacKey(secret: string): Promise<CryptoKey> {
 }
 
 export interface SessionPayload {
-	sub: string; // github username
+	sub: string; // stable Google account id — not human-readable, use `name` for display
+	name: string;
 	avatar: string;
 	iat: number;
 	exp: number;
