@@ -7,5 +7,5 @@ interface Env {
 	GITHUB_BOT_PAT: string;
 	GITHUB_REPO: string; // "owner/repo"
 	ALLOWED_ORIGIN: string; // e.g. "https://<user>.github.io"
-	ALLOWED_EMAILS: string; // comma-separated allowlist of trusted Google emails
+	OWNER_EMAIL: string; // always allowed to log in; the only account that can approve/deny others
 }

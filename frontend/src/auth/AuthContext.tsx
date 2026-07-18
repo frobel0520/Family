@@ -53,12 +53,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 			throw new Error(body.error ?? `Login failed with status ${response.status}`);
 		}
 
-		const data: { token: string; user: { name: string; avatar: string }; expiresIn: number } = await response.json();
+		const data: {
+			token: string;
+			user: { name: string; avatar: string; isOwner: boolean };
+			expiresIn: number;
+		} = await response.json();
 
 		const newSession: Session = {
 			token: data.token,
 			name: data.user.name,
 			avatar: data.user.avatar,
+			isOwner: data.user.isOwner,
 			expiresAt: Date.now() + data.expiresIn * 1000,
 		};
 

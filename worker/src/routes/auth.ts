@@ -1,7 +1,7 @@
 import { exchangeCodeForAccessToken, fetchGoogleUser, GoogleOAuthError } from "../google-oauth";
 import { signSession } from "../jwt";
 import { jsonResponse } from "../response";
-import { isAllowedEmail } from "../allowlist";
+import { checkAccess, isOwner } from "../access";
 
 const SESSION_TTL_SECONDS = 60 * 60 * 24; // 24h — short-lived, family members just re-login via Google
 
@@ -29,19 +29,23 @@ export async function handleAuthCallback(request: Request, env: Env): Promise<Re
 		);
 		const user = await fetchGoogleUser(accessToken);
 
-		if (!isAllowedEmail(env, user.email)) {
-			return jsonResponse({ error: "此帳號未被授權使用這個家庭應用程式" }, 403);
+		const access = await checkAccess(env, user);
+		if (!access.allowed) {
+			const message = access.pending
+				? "已送出登入申請，請等待管理員同意後再重新登入。"
+				: "已送出登入申請，請等待管理員同意。同意後請重新登入。";
+			return jsonResponse({ error: message, pending: true }, 403);
 		}
 
 		const token = await signSession(
-			{ sub: user.id, name: user.name, avatar: user.avatar },
+			{ sub: user.id, name: user.name, email: user.email, avatar: user.avatar, isOwner: isOwner(env, user.email) },
 			env.JWT_SECRET,
 			SESSION_TTL_SECONDS,
 		);
 
 		return jsonResponse({
 			token,
-			user: { name: user.name, avatar: user.avatar },
+			user: { name: user.name, avatar: user.avatar, isOwner: isOwner(env, user.email) },
 			expiresIn: SESSION_TTL_SECONDS,
 		});
 	} catch (err) {

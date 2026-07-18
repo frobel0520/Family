@@ -70,33 +70,45 @@ async function putFile(env: Env, path: string, content: string, message: string,
 	}
 }
 
-/**
- * Reads a JSON array file for display. Empty array if the file doesn't exist yet
- * (e.g. no board posts/recipes/orders have ever been added).
- */
-export async function readJsonArrayFile<T>(env: Env, path: string): Promise<T[]> {
+/** Reads and JSON-parses a file, or returns `fallback` if it doesn't exist yet. */
+export async function readJsonFile<T>(env: Env, path: string, fallback: T): Promise<T> {
 	const existing = await getFile(env, path);
-	return existing ? JSON.parse(existing.text) : [];
+	return existing ? JSON.parse(existing.text) : fallback;
 }
 
 /**
- * Reads a JSON array file, applies `mutate`, and commits the result.
- * If the file doesn't exist yet, starts from an empty array.
+ * Reads a JSON file (or starts from `fallback`), applies `mutate`, and commits the result.
  * v1 conflict policy is "last write wins" (per project plan) — no retry/merge logic.
  */
-export async function updateJsonArrayFile<T>(
+export async function updateJsonFile<T>(
+	env: Env,
+	path: string,
+	fallback: T,
+	mutate: (value: T) => T,
+	message: string,
+): Promise<T> {
+	const existing = await getFile(env, path);
+	const value: T = existing ? JSON.parse(existing.text) : fallback;
+
+	const updated = mutate(value);
+	await putFile(env, path, JSON.stringify(updated, null, 2), message, existing?.sha);
+
+	return updated;
+}
+
+/** Reads a JSON array file for display. Empty array if the file doesn't exist yet. */
+export function readJsonArrayFile<T>(env: Env, path: string): Promise<T[]> {
+	return readJsonFile<T[]>(env, path, []);
+}
+
+/** Reads a JSON array file, applies `mutate`, and commits the result. */
+export function updateJsonArrayFile<T>(
 	env: Env,
 	path: string,
 	mutate: (items: T[]) => T[],
 	message: string,
 ): Promise<T[]> {
-	const existing = await getFile(env, path);
-	const items: T[] = existing ? JSON.parse(existing.text) : [];
-
-	const updated = mutate(items);
-	await putFile(env, path, JSON.stringify(updated, null, 2), message, existing?.sha);
-
-	return updated;
+	return updateJsonFile<T[]>(env, path, [], mutate, message);
 }
 
 /** Commits a binary file (e.g. a recipe photo) given its base64 content. */

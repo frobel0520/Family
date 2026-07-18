@@ -20,3 +20,10 @@ export interface Order {
 	dishName: string;
 	createdAt: string;
 }
+
+export interface PendingRequest {
+	email: string;
+	name: string;
+	avatar: string;
+	requestedAt: string;
+}
