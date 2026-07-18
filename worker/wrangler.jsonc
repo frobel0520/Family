@@ -5,7 +5,7 @@
 	"observability": {
 		"enabled": true,
 	},
-	// GITHUB_CLIENT_ID / GITHUB_CLIENT_SECRET / JWT_SECRET / GITHUB_BOT_PAT are secrets,
+	// GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET / JWT_SECRET / GITHUB_BOT_PAT are secrets,
 	// set via `wrangler secret put <NAME>` — never put them here (this file is committed to git).
 	"vars": {
 		"GITHUB_REPO": "frobel0520/Family",

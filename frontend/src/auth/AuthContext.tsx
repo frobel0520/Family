@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import type { Session } from "./types";
-import { buildAuthorizeUrl } from "./githubOAuth";
+import { buildAuthorizeUrl, getRedirectUri } from "./googleOAuth";
 
 const STORAGE_KEY = "family-app-session";
 
@@ -45,7 +45,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 		const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/auth/callback`, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ code }),
+			body: JSON.stringify({ code, redirectUri: getRedirectUri() }),
 		});
 
 		if (!response.ok) {
@@ -53,12 +53,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 			throw new Error(body.error ?? `Login failed with status ${response.status}`);
 		}
 
-		const data: { token: string; user: { username: string; avatar: string }; expiresIn: number } =
-			await response.json();
+		const data: { token: string; user: { name: string; avatar: string }; expiresIn: number } = await response.json();
 
 		const newSession: Session = {
 			token: data.token,
-			username: data.user.username,
+			name: data.user.name,
 			avatar: data.user.avatar,
 			expiresAt: Date.now() + data.expiresIn * 1000,
 		};

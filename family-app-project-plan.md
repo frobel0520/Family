@@ -22,7 +22,7 @@
 | 前端 | React.js | 部署在 GitHub Pages（靜態網站） |
 | 後端 | 無傳統後端伺服器；用 **Cloudflare Worker** 當輕量中介層 | 因為 GitHub Pages 純靜態，無法執行 Python/Node 等 server-side 程式，也無法安全處理 OAuth 的 client secret 交換 |
 | 資料庫 | 無獨立資料庫，**資料存在本專案 GitHub repo 內的 JSON 檔** | 符合「只 refer 專案內檔案」的原始需求 |
-| 身份驗證 | GitHub OAuth（透過 Cloudflare Worker 中介） | 家人用自己的 GitHub 帳號登入即可標示身份，**不需要成為 repo collaborator** |
+| 身份驗證 | **Google OAuth**（透過 Cloudflare Worker 中介） | 家人用自己的 Google 帳號登入即可標示身份，**不需要 GitHub 帳號、也不需要成為 repo collaborator**（v1 曾用 GitHub OAuth，但家人不一定有 GitHub 帳號，實測登不進去才改回符合本節最初設定的 Google 帳號） |
 | 圖片儲存 | 直接以 base64 commit 進 repo（`images/recipes/` 目錄） | 食譜照片 |
 
 ### 架構決策記錄（重要，之後不要重新繞回去討論）
@@ -30,7 +30,8 @@
 - ❌ 純前端 + localStorage：放棄，因為不能跨裝置同步，不符合「家人共同編輯」需求
 - ❌ Firebase / Supabase：放棄，因為想維持「資料都在自己的 repo 裡」
 - ❌ 每人手動申請/貼上 GitHub PAT：放棄，體驗太差
-- ✅ **採用：GitHub repo 當資料庫 + Cloudflare Worker 處理 GitHub OAuth 登入與實際寫入**
+- ❌ 用 GitHub OAuth 登入：放棄，家人沒有 GitHub 帳號，實測登入頁只能「Create an account」，卡住
+- ✅ **採用：GitHub repo 當資料庫 + Cloudflare Worker 處理 Google OAuth 登入 + Bot PAT 實際寫入**
 
 ---
 
@@ -40,11 +41,11 @@
 
 流程：
 
-1. 前端「登入」按鈕 → 導向 GitHub OAuth 授權頁（需先在 GitHub 註冊一個 OAuth App，取得 `Client ID` / `Client Secret`）
-2. GitHub 導回前端指定的 callback URL，帶上 `code`
-3. 前端把 `code` 傳給 Cloudflare Worker（例如 `POST /api/auth/callback`）
-4. Worker 用 `Client Secret` 向 GitHub 交換 `access_token`，並取得使用者資訊（username、頭像）
-5. Worker 簽發一組短期 session（例如 JWT）回給前端，前端存在瀏覽器裡代表「已登入」
+1. 前端「登入」按鈕 → 導向 Google OAuth 授權頁（需先在 Google Cloud Console 建立一個 OAuth Client，取得 `Client ID` / `Client Secret`）
+2. Google 導回前端指定的 redirect URI（**必須是完整頁面網址，不能帶 `#fragment`**，跟 GitHub OAuth 不同），帶上 `code`
+3. 前端把 `code` 傳給 Cloudflare Worker（`POST /api/auth/callback`）
+4. Worker 用 `Client Secret` 向 Google 交換 `access_token`，並取得使用者資訊（name、頭像）
+5. Worker 簽發一組短期 session（JWT）回給前端，前端存在瀏覽器裡代表「已登入」
 6. 之後家人做以下任一動作時，前端呼叫 Worker 對應 API，並帶上 session：
    - 新增/編輯佈告欄留言 → `POST /api/board`
    - 上傳食譜照片 → `POST /api/recipes`
@@ -54,7 +55,7 @@
 
 ### 需要準備的帳號/設定（待辦）
 
-- [ ] 在 GitHub 註冊一個 OAuth App，取得 Client ID / Secret
+- [ ] 在 Google Cloud Console 建立一個 OAuth Client（Web application），取得 Client ID / Secret
 - [ ] 申請 Cloudflare 帳號（免費），部署一個 Worker
 - [ ] 產生一組 GitHub Fine-grained PAT（僅限這個 repo、僅 Contents 讀寫權限），設為 Worker 的環境變數（secret）
 - [ ] Worker 設定 CORS，只允許自己的 GitHub Pages 網域呼叫
@@ -79,7 +80,7 @@ repo/
 [
   {
     "id": "uuid",
-    "author": "github_username",
+    "author": "google_display_name",
     "content": "留言內容",
     "createdAt": "2026-07-18T12:00:00Z",
     "updatedAt": "2026-07-18T12:00:00Z"
@@ -95,12 +96,13 @@ repo/
     "name": "滷肉飯",
     "category": "飯類",
     "photoUrl": "images/recipes/uuid.jpg",
-    "uploadedBy": "github_username",
+    "uploadedBy": "google_display_name",
     "uploadedAt": "2026-07-18T12:00:00Z"
   }
 ]
 ```
 > v1 欄位先簡化為：照片 + 名稱 + 分類。文字備註、食材、步驟之後再考慮擴充。
+> `photoUrl` 可以是 `null`（尚未拍照）——目前 160 道從手寫食譜目錄匯入的菜都是這個狀態，前端顯示預設圖示。
 
 ### `data/orders.json`
 ```json

@@ -64,7 +64,7 @@ export async function handleCreateRecipe(request: Request, env: Env): Promise<Re
 		name: body.name.trim(),
 		category: body.category,
 		photoUrl,
-		uploadedBy: auth.session.sub,
+		uploadedBy: auth.session.name,
 		uploadedAt: now,
 	};
 
@@ -72,7 +72,7 @@ export async function handleCreateRecipe(request: Request, env: Env): Promise<Re
 		env,
 		"data/recipes.json",
 		(recipes) => [...recipes, newRecipe],
-		`recipes: add "${newRecipe.name}" by ${auth.session.sub}`,
+		`recipes: add "${newRecipe.name}" by ${auth.session.name}`,
 	);
 
 	return jsonResponse(newRecipe, 201);

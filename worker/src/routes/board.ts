@@ -34,7 +34,7 @@ export async function handleCreateBoardPost(request: Request, env: Env): Promise
 	const now = new Date().toISOString();
 	const newPost: BoardPost = {
 		id: crypto.randomUUID(),
-		author: auth.session.sub,
+		author: auth.session.name,
 		content: body.content.trim(),
 		createdAt: now,
 		updatedAt: now,
@@ -44,7 +44,7 @@ export async function handleCreateBoardPost(request: Request, env: Env): Promise
 		env,
 		"data/board.json",
 		(posts) => [...posts, newPost],
-		`board: new post by ${auth.session.sub}`,
+		`board: new post by ${auth.session.name}`,
 	);
 
 	return jsonResponse(newPost, 201);
