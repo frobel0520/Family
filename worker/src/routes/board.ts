@@ -1,5 +1,5 @@
 import { requireSession } from "../session";
-import { updateJsonArrayFile } from "../github-contents";
+import { readJsonArrayFile, updateJsonArrayFile } from "../github-contents";
 import { jsonResponse } from "../response";
 
 interface BoardPost {
@@ -8,6 +8,12 @@ interface BoardPost {
 	content: string;
 	createdAt: string;
 	updatedAt: string;
+}
+
+export async function handleListBoardPosts(_request: Request, env: Env): Promise<Response> {
+	const posts = await readJsonArrayFile<BoardPost>(env, "data/board.json");
+	posts.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+	return jsonResponse(posts);
 }
 
 export async function handleCreateBoardPost(request: Request, env: Env): Promise<Response> {
