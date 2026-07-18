@@ -4,6 +4,7 @@ import { createRecipe, listRecipes } from "../api";
 import type { Recipe } from "../types";
 import { RECIPE_CATEGORIES } from "../recipeCategories";
 import { fileToDataUrl } from "../fileToDataUrl";
+import { RecipePhoto } from "../components/RecipePhoto";
 
 export function Recipes() {
 	const { session } = useAuth();
@@ -96,7 +97,7 @@ export function Recipes() {
 			<div className="recipe-grid">
 				{visibleRecipes.map((recipe) => (
 					<div key={recipe.id} className="recipe-card">
-						<img src={recipe.photoUrl} alt={recipe.name} />
+						<RecipePhoto photoUrl={recipe.photoUrl} name={recipe.name} />
 						<div className="recipe-name">{recipe.name}</div>
 					</div>
 				))}

@@ -7,7 +7,7 @@ interface Recipe {
 	id: string;
 	name: string;
 	category: string;
-	photoUrl: string;
+	photoUrl: string | null; // null = imported from the handwritten index, photo not taken yet
 	uploadedBy: string;
 	uploadedAt: string;
 }
@@ -25,7 +25,10 @@ function toRawUrl(env: Env, repoRelativePath: string): string {
 
 export async function handleListRecipes(_request: Request, env: Env): Promise<Response> {
 	const recipes = await readJsonArrayFile<Recipe>(env, "data/recipes.json");
-	const withRawPhotoUrls = recipes.map((recipe) => ({ ...recipe, photoUrl: toRawUrl(env, recipe.photoUrl) }));
+	const withRawPhotoUrls = recipes.map((recipe) => ({
+		...recipe,
+		photoUrl: recipe.photoUrl ? toRawUrl(env, recipe.photoUrl) : null,
+	}));
 	return jsonResponse(withRawPhotoUrls);
 }
 
