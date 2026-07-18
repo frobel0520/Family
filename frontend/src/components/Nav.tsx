@@ -1,35 +1,46 @@
 import { NavLink } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 
+const TABS = [
+	{ to: "/", icon: "🏠", label: "首頁", end: true },
+	{ to: "/board", icon: "📌", label: "佈告欄" },
+	{ to: "/recipes", icon: "🍳", label: "食譜庫" },
+	{ to: "/orders", icon: "🍽️", label: "點菜" },
+];
+
 export function Nav() {
 	const { session, login, logout } = useAuth();
 
 	return (
-		<nav className="nav">
-			<div className="nav-links">
-				<NavLink to="/" end>
-					首頁
-				</NavLink>
-				<NavLink to="/board">佈告欄</NavLink>
-				<NavLink to="/recipes">食譜庫</NavLink>
-				<NavLink to="/orders">點菜</NavLink>
-			</div>
+		<>
+			<header className="header">
+				<div className="brand">🏡 家庭生活小工具</div>
 
-			<div className="nav-auth">
-				{session ? (
-					<>
-						<img src={session.avatar} alt={session.username} className="nav-avatar" />
-						<span>{session.username}</span>
-						<button type="button" onClick={logout}>
-							登出
+				<div className="nav-auth">
+					{session ? (
+						<>
+							<img src={session.avatar} alt={session.username} className="nav-avatar" />
+							<span className="username">{session.username}</span>
+							<button type="button" className="logout" onClick={logout}>
+								登出
+							</button>
+						</>
+					) : (
+						<button type="button" onClick={login}>
+							登入
 						</button>
-					</>
-				) : (
-					<button type="button" onClick={login}>
-						登入
-					</button>
-				)}
-			</div>
-		</nav>
+					)}
+				</div>
+			</header>
+
+			<nav className="tabs">
+				{TABS.map((tab) => (
+					<NavLink key={tab.to} to={tab.to} end={tab.end}>
+						<span className="tab-icon">{tab.icon}</span>
+						{tab.label}
+					</NavLink>
+				))}
+			</nav>
+		</>
 	);
 }
