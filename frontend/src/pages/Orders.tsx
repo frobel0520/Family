@@ -12,7 +12,6 @@ export function Orders() {
 	const [loading, setLoading] = useState(true);
 	const [loadError, setLoadError] = useState<string | null>(null);
 	const [category, setCategory] = useState<string | null>(null);
-	const [searched, setSearched] = useState(false);
 	const [addingId, setAddingId] = useState<string | null>(null);
 	const [addError, setAddError] = useState<string | null>(null);
 
@@ -52,19 +51,12 @@ export function Orders() {
 						key={c}
 						type="button"
 						className={category === c ? "active" : ""}
-						onClick={() => {
-							setCategory(c);
-							setSearched(false);
-						}}
+						onClick={() => setCategory(c)}
 					>
 						{c}
 					</button>
 				))}
 			</div>
-
-			<button type="button" disabled={!category} onClick={() => setSearched(true)}>
-				搜尋
-			</button>
 
 			{loading && <p>載入中…</p>}
 			{loadError && <p className="error">載入失敗：{loadError}</p>}
@@ -72,8 +64,8 @@ export function Orders() {
 
 			<div className="orders-layout">
 				<div className="orders-results">
-					{searched && results.length === 0 && <p className="hint">這個分類還沒有食譜。</p>}
-					{searched &&
+					{category && results.length === 0 && <p className="hint">這個分類還沒有食譜。</p>}
+					{category &&
 						results.map((recipe) => (
 							<div key={recipe.id} className="recipe-card">
 								<RecipePhoto photoUrl={recipe.photoUrl} name={recipe.name} />
@@ -87,7 +79,8 @@ export function Orders() {
 								</button>
 							</div>
 						))}
-					{!session && searched && <p className="hint">登入後才能點菜。</p>}
+					{!session && category && <p className="hint">登入後才能點菜。</p>}
+					{!category && <p className="hint">選一個分類看看有什麼菜。</p>}
 				</div>
 
 				<div className="orders-list">
