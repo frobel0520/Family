@@ -5,6 +5,9 @@ import type { Recipe } from "../types";
 import { RECIPE_CATEGORIES } from "../recipeCategories";
 import { fileToDataUrl } from "../fileToDataUrl";
 import { RecipePhoto } from "../components/RecipePhoto";
+import { Pager } from "../components/Pager";
+
+const PAGE_SIZE = 10;
 
 export function Recipes() {
 	const { session } = useAuth();
@@ -12,6 +15,7 @@ export function Recipes() {
 	const [loading, setLoading] = useState(true);
 	const [loadError, setLoadError] = useState<string | null>(null);
 	const [activeCategory, setActiveCategory] = useState<string | null>(null);
+	const [page, setPage] = useState(1);
 
 	const [name, setName] = useState("");
 	const [category, setCategory] = useState<string>(RECIPE_CATEGORIES[0]);
@@ -25,6 +29,11 @@ export function Recipes() {
 			.catch((err: Error) => setLoadError(err.message))
 			.finally(() => setLoading(false));
 	}, []);
+
+	function selectCategory(c: string | null) {
+		setActiveCategory(c);
+		setPage(1);
+	}
 
 	async function handleSubmit(e: React.FormEvent) {
 		e.preventDefault();
@@ -46,13 +55,15 @@ export function Recipes() {
 	}
 
 	const visibleRecipes = activeCategory ? recipes.filter((r) => r.category === activeCategory) : recipes;
+	const totalPages = Math.max(1, Math.ceil(visibleRecipes.length / PAGE_SIZE));
+	const pageRecipes = visibleRecipes.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
 	return (
 		<div className="page">
 			<h1>食譜庫</h1>
 
 			<div className="category-filter">
-				<button type="button" className={activeCategory === null ? "active" : ""} onClick={() => setActiveCategory(null)}>
+				<button type="button" className={activeCategory === null ? "active" : ""} onClick={() => selectCategory(null)}>
 					全部
 				</button>
 				{RECIPE_CATEGORIES.map((c) => (
@@ -60,7 +71,7 @@ export function Recipes() {
 						key={c}
 						type="button"
 						className={activeCategory === c ? "active" : ""}
-						onClick={() => setActiveCategory(c)}
+						onClick={() => selectCategory(c)}
 					>
 						{c}
 					</button>
@@ -95,7 +106,7 @@ export function Recipes() {
 			{loadError && <p className="error">載入失敗：{loadError}</p>}
 
 			<div className="recipe-grid">
-				{visibleRecipes.map((recipe) => (
+				{pageRecipes.map((recipe) => (
 					<div key={recipe.id} className="recipe-card">
 						<RecipePhoto photoUrl={recipe.photoUrl} name={recipe.name} />
 						<div className="recipe-name">{recipe.name}</div>
@@ -103,6 +114,8 @@ export function Recipes() {
 				))}
 			</div>
 			{!loading && visibleRecipes.length === 0 && <p className="hint">這個分類還沒有食譜。</p>}
+
+			<Pager page={page} totalPages={totalPages} onChange={setPage} />
 		</div>
 	);
 }
