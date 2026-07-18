@@ -10,7 +10,7 @@
 | 項目 | 狀態 |
 |---|---|
 | Cloudflare Worker 後端（Google OAuth、CORS、GitHub Contents API 讀寫） | ✅ 已完成並部署，登入已改成 Google OAuth 並實測成功 |
-| 登入審核機制（同意/拒絕新申請，取代寫死白名單） | ⚠️ 程式碼已完成、待部署 + 待你設定 `OWNER_EMAIL` secret（見下方「進行中」） |
+| 登入審核機制（同意/拒絕新申請，取代寫死白名單） | ✅ 已完成並實測成功（申請 → 審核頁核准 → 對方重新登入成功） |
 | GitHub Pages 部署 pipeline（GitHub Actions） | ✅ 已跑通 |
 | 前端登入/導覽框架 + UI 主題 | ✅ 已完成 |
 | 佈告欄 / 食譜庫 / 點菜頁面 | ✅ 已實作（讀取 + 新增） |
@@ -19,7 +19,7 @@
 
 ---
 
-## ⚠️ 進行中：登入審核機制（同意制，取代白名單）
+## ✅ 已完成：登入審核機制（同意制，取代白名單）
 
 **背景**：一開始做了 `ALLOWED_EMAILS`（Worker secret，逗號分隔的信任 email 清單）這個版本，但使用者不想手動維護一份寫死的名單，希望「有人嘗試登入時來問我同不同意」。所以整個換掉，改成審核佇列機制。**`ALLOWED_EMAILS`/`allowlist.ts` 那個版本已經完全移除，沒有部署過就被取代了。**
 
@@ -34,14 +34,7 @@
 - Worker：`access.ts`（新檔案，`checkAccess`/`listPending`/`approveEmail`/`denyEmail`，資料存 `data/access.json`）、`routes/admin.ts`（`GET /api/admin/pending`、`POST /api/admin/approve`、`POST /api/admin/deny`，都要求 `session.isOwner`）、`session.ts` 多了 `requireOwner` helper、`jwt.ts` 的 `SessionPayload` 多了 `email`/`isOwner` 欄位、`github-contents.ts` 把陣列限定的 `readJsonArrayFile`/`updateJsonArrayFile` 通用化成 `readJsonFile`/`updateJsonFile`（給 `access.json` 這種物件結構用）、`worker-configuration.d.ts` 拿掉 `ALLOWED_EMAILS`、加了 `OWNER_EMAIL`
 - 前端：`pages/Admin.tsx`（新頁面，未登入/非擁有者會看到對應提示而不是清單）、`Nav.tsx` 只有 `session.isOwner` 才會多顯示「審核」分頁、`api.ts` 加了 `listPendingRequests`/`approveRequest`/`denyRequest`、`Session` 型別多了 `isOwner`
 
-**還沒做的（下一步接手要先做這些）**：
-1. 你要在 `worker/` 資料夾自己跑 `npx wrangler secret put OWNER_EMAIL`，輸入**你自己**登入用的那個 Google email（不是家人的，是你的——這個帳號會永遠放行、且是唯一能審核別人的帳號）
-2. `npx wrangler secret delete ALLOWED_EMAILS`（如果你之前真的設定過的話；如果還沒設定過這步可以跳過）
-3. `npx wrangler deploy` 部署這次的改動（在 `worker/` 資料夾）
-4. 實測：
-   - 用 `OWNER_EMAIL` 那個帳號登入，確認能看到「審核」分頁
-   - 用另一個 Google 帳號（要先加進 Google OAuth consent screen 的 Test users，不然連 Google 登入畫面都過不去）登入，應該會看到「已送出申請」訊息，不會真的登入
-   - 回到擁有者帳號的「審核」分頁，應該會看到剛剛那筆申請，按「同意」後對方重新登入應該就能成功
+**`OWNER_EMAIL` 已設定、Worker 已部署、完整流程已實測成功**（申請 → 擁有者在 `/admin` 核准 → 對方重新登入成功）。
 
 ---
 
@@ -90,10 +83,9 @@ Worker 有 `GET /api/board`、`GET /api/recipes`、`GET /api/orders`（公開、
 
 ## 下一步（依優先順序）
 
-1. **完成登入審核機制設定**（見上方「進行中」清單）並實測完整流程（申請 → 審核 → 核准後登入）
-2. 佈告欄「編輯/刪除自己的留言」——Worker 目前只有新增（POST），`board.json` 的 `updatedAt` 欄位已經預留但沒用到
-3. 陸續幫已匯入的 160 道菜補照片（現在都顯示預設圖示）
-4. 校對 160 道菜裡幾個手寫字跡辨識不確定的品項（湯品 17/20/21/23、麵食 11、飯類 9/18 括號註記）——細節在 `data/recipes.json` 的 commit message 裡有提到
+1. 佈告欄「編輯/刪除自己的留言」——Worker 目前只有新增（POST），`board.json` 的 `updatedAt` 欄位已經預留但沒用到
+2. 陸續幫已匯入的 160 道菜補照片（現在都顯示預設圖示）
+3. 校對 160 道菜裡幾個手寫字跡辨識不確定的品項（湯品 17/20/21/23、麵食 11、飯類 9/18 括號註記）——細節在 `data/recipes.json` 的 commit message 裡有提到
 
 ## 已知限制（暫不處理，非 bug）
 
