@@ -13,6 +13,7 @@ export interface Recipe {
 	photoUrl: string | null; // null = 尚未拍照（從手寫目錄匯入）
 	uploadedBy: string;
 	uploadedAt: string;
+	photoCredit?: { source: string; author: string; license: string };
 }
 
 export interface Order {

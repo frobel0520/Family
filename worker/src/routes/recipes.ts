@@ -10,6 +10,7 @@ interface Recipe {
 	photoUrl: string | null; // null = imported from the handwritten index, photo not taken yet
 	uploadedBy: string;
 	uploadedAt: string;
+	photoCredit?: { source: string; author: string; license: string }; // set for openly-licensed stock photos
 }
 
 /** Frontend sends the photo as a data URL (e.g. "data:image/jpeg;base64,...") or plain base64. */
