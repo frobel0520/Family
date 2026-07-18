@@ -80,7 +80,7 @@ export function Orders() {
 						{category &&
 							pageResults.map((recipe) => (
 								<div key={recipe.id} className="recipe-card">
-									<RecipePhoto photoUrl={recipe.photoUrl} name={recipe.name} />
+									<RecipePhoto photoUrl={recipe.photoUrl} name={recipe.name} photoCredit={recipe.photoCredit} />
 									<div className="recipe-name">{recipe.name}</div>
 									<button
 										type="button"
