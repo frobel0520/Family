@@ -8,7 +8,8 @@
 	// GITHUB_CLIENT_ID / GITHUB_CLIENT_SECRET / JWT_SECRET / GITHUB_BOT_PAT are secrets,
 	// set via `wrangler secret put <NAME>` — never put them here (this file is committed to git).
 	"vars": {
-		"GITHUB_REPO": "owner/repo",
-		"ALLOWED_ORIGIN": "https://your-username.github.io",
+		"GITHUB_REPO": "frobel0520/Family",
+		// Origin header only includes scheme+host, not the /Family/ path.
+		"ALLOWED_ORIGIN": "https://frobel0520.github.io",
 	},
 }
