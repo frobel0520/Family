@@ -1,6 +1,6 @@
 /** Absolute URL of the /auth/callback route, respecting Vite's base path in both dev and prod. */
 export function getRedirectUri(): string {
-	return `${window.location.origin}${import.meta.env.BASE_URL}auth/callback`;
+	return `${window.location.origin}${import.meta.env.BASE_URL}#/auth/callback`;
 }
 
 export function buildAuthorizeUrl(): string {
