@@ -1,5 +1,5 @@
 import { requireSession } from "../session";
-import { updateJsonArrayFile, putBase64File } from "../github-contents";
+import { readJsonArrayFile, updateJsonArrayFile, putBase64File } from "../github-contents";
 import { jsonResponse } from "../response";
 import { isRecipeCategory } from "../recipe-categories";
 
@@ -16,6 +16,17 @@ interface Recipe {
 function stripDataUrlPrefix(photo: string): string {
 	const match = photo.match(/^data:.*;base64,(.+)$/s);
 	return match ? match[1] : photo;
+}
+
+/** photoUrl is stored as a repo-relative path; resolve it to a fetchable raw.githubusercontent.com URL. */
+function toRawUrl(env: Env, repoRelativePath: string): string {
+	return `https://raw.githubusercontent.com/${env.GITHUB_REPO}/main/${repoRelativePath}`;
+}
+
+export async function handleListRecipes(_request: Request, env: Env): Promise<Response> {
+	const recipes = await readJsonArrayFile<Recipe>(env, "data/recipes.json");
+	const withRawPhotoUrls = recipes.map((recipe) => ({ ...recipe, photoUrl: toRawUrl(env, recipe.photoUrl) }));
+	return jsonResponse(withRawPhotoUrls);
 }
 
 export async function handleCreateRecipe(request: Request, env: Env): Promise<Response> {

@@ -1,8 +1,8 @@
 import { handleAuthCallback } from "./routes/auth";
 import { handleMe } from "./routes/me";
-import { handleCreateBoardPost } from "./routes/board";
-import { handleCreateRecipe } from "./routes/recipes";
-import { handleCreateOrder } from "./routes/orders";
+import { handleListBoardPosts, handleCreateBoardPost } from "./routes/board";
+import { handleListRecipes, handleCreateRecipe } from "./routes/recipes";
+import { handleListOrders, handleCreateOrder } from "./routes/orders";
 import { jsonResponse } from "./response";
 import { handlePreflight, withCors } from "./cors";
 
@@ -17,12 +17,24 @@ async function route(request: Request, env: Env): Promise<Response> {
 		return handleMe(request, env);
 	}
 
+	if (request.method === "GET" && url.pathname === "/api/board") {
+		return handleListBoardPosts(request, env);
+	}
+
 	if (request.method === "POST" && url.pathname === "/api/board") {
 		return handleCreateBoardPost(request, env);
 	}
 
+	if (request.method === "GET" && url.pathname === "/api/recipes") {
+		return handleListRecipes(request, env);
+	}
+
 	if (request.method === "POST" && url.pathname === "/api/recipes") {
 		return handleCreateRecipe(request, env);
+	}
+
+	if (request.method === "GET" && url.pathname === "/api/orders") {
+		return handleListOrders(request, env);
 	}
 
 	if (request.method === "POST" && url.pathname === "/api/orders") {

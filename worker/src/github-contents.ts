@@ -71,6 +71,15 @@ async function putFile(env: Env, path: string, content: string, message: string,
 }
 
 /**
+ * Reads a JSON array file for display. Empty array if the file doesn't exist yet
+ * (e.g. no board posts/recipes/orders have ever been added).
+ */
+export async function readJsonArrayFile<T>(env: Env, path: string): Promise<T[]> {
+	const existing = await getFile(env, path);
+	return existing ? JSON.parse(existing.text) : [];
+}
+
+/**
  * Reads a JSON array file, applies `mutate`, and commits the result.
  * If the file doesn't exist yet, starts from an empty array.
  * v1 conflict policy is "last write wins" (per project plan) — no retry/merge logic.

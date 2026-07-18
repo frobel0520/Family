@@ -1,11 +1,17 @@
 import { requireSession } from "../session";
-import { updateJsonArrayFile } from "../github-contents";
+import { readJsonArrayFile, updateJsonArrayFile } from "../github-contents";
 import { jsonResponse } from "../response";
 
 interface Order {
 	id: string;
 	dishName: string;
 	createdAt: string;
+}
+
+export async function handleListOrders(_request: Request, env: Env): Promise<Response> {
+	const orders = await readJsonArrayFile<Order>(env, "data/orders.json");
+	orders.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+	return jsonResponse(orders);
 }
 
 export async function handleCreateOrder(request: Request, env: Env): Promise<Response> {
