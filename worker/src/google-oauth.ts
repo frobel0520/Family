@@ -8,6 +8,7 @@
 export interface GoogleUser {
 	id: string; // stable, opaque account id (the "sub" claim) — not human-readable
 	name: string;
+	email: string;
 	avatar: string;
 }
 
@@ -49,7 +50,7 @@ export async function fetchGoogleUser(accessToken: string): Promise<GoogleUser> 
 		throw new GoogleOAuthError(`Google user lookup failed with status ${response.status}`);
 	}
 
-	const data = (await response.json()) as { sub: string; name: string; picture: string };
+	const data = (await response.json()) as { sub: string; name: string; email: string; picture: string };
 
-	return { id: data.sub, name: data.name, avatar: data.picture };
+	return { id: data.sub, name: data.name, email: data.email, avatar: data.picture };
 }
