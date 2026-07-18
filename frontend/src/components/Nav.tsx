@@ -15,7 +15,7 @@ export function Nav() {
 	return (
 		<>
 			<header className="header">
-				<div className="brand">🏡 家庭生活小工具</div>
+				<div className="brand">🏡 Family APP</div>
 
 				<div className="nav-auth">
 					{session ? (
