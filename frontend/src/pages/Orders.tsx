@@ -4,6 +4,7 @@ import { createOrder, listOrders, listRecipes } from "../api";
 import type { Order, Recipe } from "../types";
 import { RECIPE_CATEGORIES } from "../recipeCategories";
 import { RecipePhoto } from "../components/RecipePhoto";
+import { PhotoCredits } from "../components/PhotoCredits";
 import { Pager } from "../components/Pager";
 
 const PAGE_SIZE = 10;
@@ -80,7 +81,7 @@ export function Orders() {
 						{category &&
 							pageResults.map((recipe) => (
 								<div key={recipe.id} className="recipe-card">
-									<RecipePhoto photoUrl={recipe.photoUrl} name={recipe.name} photoCredit={recipe.photoCredit} />
+									<RecipePhoto photoUrl={recipe.photoUrl} name={recipe.name} />
 									<div className="recipe-name">{recipe.name}</div>
 									<button
 										type="button"
@@ -107,6 +108,8 @@ export function Orders() {
 					{orders.length === 0 && <p className="hint">目前沒有點菜紀錄。</p>}
 				</div>
 			</div>
+
+			<PhotoCredits recipes={recipes} />
 		</div>
 	);
 }
