@@ -43,8 +43,12 @@ export function Board() {
 			.finally(() => setLoading(false));
 	}, []);
 
-	function canDelete(author: string): boolean {
-		return !!session && (session.isOwner || author === session.name);
+	function canDelete(target: { author: string; authorEmail?: string }): boolean {
+		if (!session) return false;
+		if (session.isOwner) return true;
+		// 新資料用 email 比對（暱稱可以改，名字比對會失效）；舊資料退回名字比對
+		if (target.authorEmail && session.email) return target.authorEmail === session.email;
+		return target.author === session.name;
 	}
 
 	async function handleSubmit(e: React.FormEvent) {
@@ -147,7 +151,7 @@ export function Board() {
 							</div>
 						</div>
 						<p>{post.content}</p>
-						{canDelete(post.author) && (
+						{canDelete(post) && (
 							<button
 								type="button"
 								className="delete-x"
@@ -169,7 +173,7 @@ export function Board() {
 										</div>
 										<p>{comment.content}</p>
 									</div>
-									{canDelete(comment.author) && (
+									{canDelete(comment) && (
 										<button
 											type="button"
 											className="delete-x"

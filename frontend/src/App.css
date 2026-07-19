@@ -396,6 +396,50 @@
 	font-size: 1.02rem;
 }
 
+/* ---------- Settings: profile ---------- */
+
+.profile-avatar-row {
+	display: flex;
+	align-items: center;
+	gap: 0.9rem;
+	margin-bottom: 0.9rem;
+}
+
+.profile-avatar-row .user-avatar {
+	width: 3.4rem;
+	height: 3.4rem;
+	font-size: 1.5rem;
+}
+
+.profile-avatar-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.5rem;
+}
+
+.profile-avatar-actions button {
+	font-size: 0.88rem;
+	padding: 0.4rem 0.85rem;
+}
+
+.profile-nickname-form {
+	display: flex;
+	flex-direction: column;
+	gap: 0.6rem;
+}
+
+.profile-nickname-form label {
+	display: flex;
+	flex-direction: column;
+	gap: 0.35rem;
+	font-size: 0.85rem;
+	color: var(--text-soft);
+}
+
+.profile-nickname-form button {
+	align-self: flex-start;
+}
+
 /* ---------- Confirm dialog ---------- */
 
 .confirm-dialog {

@@ -6,6 +6,7 @@ import { excerpt, notifyAll } from "../notify";
 interface BoardComment {
 	id: string;
 	author: string;
+	authorEmail?: string; // 刪除權限用 email 比對（暱稱可改，名字比對會失效）；舊資料沒有
 	avatar?: string;
 	content: string;
 	createdAt: string;
@@ -14,11 +15,19 @@ interface BoardComment {
 interface BoardPost {
 	id: string;
 	author: string;
+	authorEmail?: string; // 同上；舊資料沒有這個欄位，fallback 比對名字
 	avatar?: string; // 舊資料沒有這個欄位，前端會用名字首字當替代頭像
 	content: string;
 	createdAt: string;
 	updatedAt: string;
 	comments?: BoardComment[];
+}
+
+/** 刪除權限：擁有者一律可以；有 authorEmail 用 email 比對，舊資料退回名字比對。 */
+function canDelete(session: { isOwner: boolean; email: string; name: string }, target: { author: string; authorEmail?: string }): boolean {
+	if (session.isOwner) return true;
+	if (target.authorEmail) return target.authorEmail === session.email.toLowerCase();
+	return target.author === session.name;
 }
 
 export async function handleListBoardPosts(_request: Request, env: Env): Promise<Response> {
@@ -46,6 +55,7 @@ export async function handleCreateBoardPost(request: Request, env: Env, ctx: Exe
 	const newPost: BoardPost = {
 		id: crypto.randomUUID(),
 		author: auth.session.name,
+		authorEmail: auth.session.email.toLowerCase(),
 		avatar: auth.session.avatar,
 		content: body.content.trim(),
 		createdAt: now,
@@ -91,7 +101,7 @@ export async function handleDeleteBoardPost(request: Request, env: Env): Promise
 	if (!target) {
 		return jsonResponse({ error: "Post not found" }, 404);
 	}
-	if (!auth.session.isOwner && target.author !== auth.session.name) {
+	if (!canDelete(auth.session, target)) {
 		return jsonResponse({ error: "只能刪除自己的貼文" }, 403);
 	}
 
@@ -127,6 +137,7 @@ export async function handleCreateBoardComment(request: Request, env: Env, ctx: 
 	const newComment: BoardComment = {
 		id: crypto.randomUUID(),
 		author: auth.session.name,
+		authorEmail: auth.session.email.toLowerCase(),
 		avatar: auth.session.avatar,
 		content: body.content.trim(),
 		createdAt: new Date().toISOString(),
@@ -184,7 +195,7 @@ export async function handleDeleteBoardComment(request: Request, env: Env): Prom
 	if (!target) {
 		return jsonResponse({ error: "Comment not found" }, 404);
 	}
-	if (!auth.session.isOwner && target.author !== auth.session.name) {
+	if (!canDelete(auth.session, target)) {
 		return jsonResponse({ error: "只能刪除自己的留言" }, 403);
 	}
 

@@ -1,4 +1,5 @@
-import type { BoardComment, BoardPost, Order, PendingRequest, Recipe } from "./types";
+import type { BoardComment, BoardPost, Order, PendingRequest, Profile, Recipe } from "./types";
+import type { SessionResponse } from "./auth/types";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL;
 
@@ -80,6 +81,18 @@ export const deleteOrder = (token: string, id: string) =>
 		method: "POST",
 		headers: authHeaders(token),
 		body: JSON.stringify({ id }),
+	});
+
+export const getProfile = (token: string) => request<Profile>("/api/profile", { headers: authHeaders(token) });
+
+export const updateProfile = (
+	token: string,
+	data: { nickname?: string; avatar?: "google" | { base64: string } },
+) =>
+	request<SessionResponse & { profile: { nickname: string | null; customAvatarUrl: string | null } }>("/api/profile", {
+		method: "POST",
+		headers: authHeaders(token),
+		body: JSON.stringify(data),
 	});
 
 export const subscribePush = (token: string, subscription: { endpoint: string; keys: { p256dh: string; auth: string } }) =>

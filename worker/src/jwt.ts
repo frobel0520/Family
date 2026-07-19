@@ -30,9 +30,11 @@ async function hmacKey(secret: string): Promise<CryptoKey> {
 
 export interface SessionPayload {
 	sub: string; // stable Google account id — not human-readable, use `name` for display
-	name: string;
+	name: string; // 顯示名稱：有設暱稱就是暱稱，否則是 Google 名字
 	email: string;
-	avatar: string;
+	avatar: string; // 生效中的大頭貼（自訂上傳或 Google）
+	googleName?: string; // Google 原始名字，清除暱稱時還原用（舊 token 沒有）
+	googleAvatar?: string; // Google 原始大頭貼，設定頁「改回 Google 大頭貼」用（舊 token 沒有）
 	isOwner: boolean;
 	iat: number;
 	exp: number;

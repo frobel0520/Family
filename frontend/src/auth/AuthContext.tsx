@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
-import type { Session } from "./types";
+import type { Session, SessionResponse } from "./types";
 import { buildAuthorizeUrl, getRedirectUri } from "./googleOAuth";
 
 const STORAGE_KEY = "family-app-session";
@@ -25,6 +25,8 @@ interface AuthContextValue {
 	login: () => void;
 	logout: () => void;
 	exchangeCode: (code: string) => Promise<void>;
+	/** 更新個人資料後，後端會重簽 session（新暱稱/大頭貼立刻生效），用這個套用。 */
+	applySessionResponse: (data: SessionResponse) => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -41,42 +43,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 		setSession(null);
 	}, []);
 
-	const exchangeCode = useCallback(async (code: string) => {
-		const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/auth/callback`, {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ code, redirectUri: getRedirectUri() }),
-		});
-
-		if (!response.ok) {
-			const body = await response.json().catch(() => ({}));
-			throw new Error(body.error ?? `Login failed with status ${response.status}`);
-		}
-
-		const data: {
-			token: string;
-			user: { name: string; avatar: string; isOwner: boolean };
-			expiresIn: number;
-		} = await response.json();
-
+	const applySessionResponse = useCallback((data: SessionResponse) => {
 		const newSession: Session = {
 			token: data.token,
 			name: data.user.name,
 			avatar: data.user.avatar,
+			email: data.user.email,
 			isOwner: data.user.isOwner,
 			expiresAt: Date.now() + data.expiresIn * 1000,
 		};
-
 		localStorage.setItem(STORAGE_KEY, JSON.stringify(newSession));
 		setSession(newSession);
 	}, []);
+
+	const exchangeCode = useCallback(
+		async (code: string) => {
+			const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/auth/callback`, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ code, redirectUri: getRedirectUri() }),
+			});
+
+			if (!response.ok) {
+				const body = await response.json().catch(() => ({}));
+				throw new Error(body.error ?? `Login failed with status ${response.status}`);
+			}
+
+			applySessionResponse((await response.json()) as SessionResponse);
+		},
+		[applySessionResponse],
+	);
 
 	// Session may have expired since last load without a re-render happening.
 	useEffect(() => {
 		if (session && session.expiresAt < Date.now()) logout();
 	}, [session, logout]);
 
-	return <AuthContext.Provider value={{ session, login, logout, exchangeCode }}>{children}</AuthContext.Provider>;
+	return (
+		<AuthContext.Provider value={{ session, login, logout, exchangeCode, applySessionResponse }}>
+			{children}
+		</AuthContext.Provider>
+	);
 }
 
 export function useAuth(): AuthContextValue {
