@@ -9,6 +9,7 @@ interface Recipe {
 	category: string;
 	photoUrl: string | null; // 菜色圖（目前全部是自製插畫）；null = 顯示預設圖示
 	recipeUrl?: string | null; // 食譜圖（家人拍的手寫食譜），卡片上的「食譜」按鈕開這張
+	recipeUpdatedAt?: string; // 食譜圖最後更新時間；前端拿來當快取破壞參數，換圖後才不會顯示舊圖
 	uploadedBy: string;
 	uploadedAt: string;
 }
@@ -118,7 +119,7 @@ export async function handleUploadRecipeImage(request: Request, env: Env): Promi
 		(list) =>
 			list.map((r) => {
 				if (r.id !== body.id) return r;
-				updated = { ...r, recipeUrl };
+				updated = { ...r, recipeUrl, recipeUpdatedAt: new Date().toISOString() };
 				return updated;
 			}),
 		`recipes: attach recipe image to "${target.name}" by ${auth.session.name}`,
