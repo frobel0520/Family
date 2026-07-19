@@ -349,6 +349,53 @@
 	flex-shrink: 0;
 }
 
+/* ---------- Install (PWA) page ---------- */
+
+.install-page {
+	max-width: 34rem;
+}
+
+.install-section {
+	background: var(--card);
+	border: 1px solid var(--border);
+	border-radius: var(--radius);
+	box-shadow: var(--shadow);
+	padding: 1rem 1.2rem;
+	margin-top: 1rem;
+}
+
+.install-section h2 {
+	font-size: 1.05rem;
+	margin: 0 0 0.6rem;
+	color: var(--text-h);
+}
+
+.install-section ol {
+	margin: 0;
+	padding-left: 1.4rem;
+	display: flex;
+	flex-direction: column;
+	gap: 0.45rem;
+	color: var(--text);
+}
+
+.install-section strong {
+	color: var(--accent);
+}
+
+.install-section .hint {
+	margin-top: 0.7rem;
+	font-size: 0.85rem;
+}
+
+.install-done {
+	background: var(--accent-soft);
+	color: var(--text-h);
+	border-radius: var(--radius);
+	padding: 1rem 1.2rem;
+	font-size: 1.02rem;
+}
+
 /* ---------- Confirm dialog ---------- */
 
 .confirm-dialog {
