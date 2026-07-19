@@ -11,6 +11,7 @@ import { handleListRecipes, handleCreateRecipe, handleUploadRecipeImage } from "
 import { handleListOrders, handleCreateOrder, handleDeleteOrder } from "./routes/orders";
 import { handleListPending, handleApprove, handleDeny } from "./routes/admin";
 import { handlePushSubscribe, handlePushUnsubscribe } from "./routes/push";
+import { handleGetProfile, handleUpdateProfile } from "./routes/profile";
 import { jsonResponse } from "./response";
 import { handlePreflight, withCors } from "./cors";
 
@@ -79,6 +80,14 @@ async function route(request: Request, env: Env, ctx: ExecutionContext): Promise
 
 	if (request.method === "POST" && url.pathname === "/api/admin/deny") {
 		return handleDeny(request, env);
+	}
+
+	if (request.method === "GET" && url.pathname === "/api/profile") {
+		return handleGetProfile(request, env);
+	}
+
+	if (request.method === "POST" && url.pathname === "/api/profile") {
+		return handleUpdateProfile(request, env);
 	}
 
 	if (request.method === "POST" && url.pathname === "/api/push/subscribe") {

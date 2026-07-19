@@ -1,6 +1,7 @@
 export interface BoardComment {
 	id: string;
 	author: string;
+	authorEmail?: string; // 刪除權限比對用；舊資料沒有
 	avatar?: string;
 	content: string;
 	createdAt: string;
@@ -9,11 +10,19 @@ export interface BoardComment {
 export interface BoardPost {
 	id: string;
 	author: string;
+	authorEmail?: string; // 刪除權限比對用；舊資料沒有
 	avatar?: string; // 舊貼文沒有頭像，前端用名字首字替代
 	content: string;
 	createdAt: string;
 	updatedAt: string;
 	comments?: BoardComment[];
+}
+
+export interface Profile {
+	nickname: string | null;
+	customAvatarUrl: string | null;
+	googleName: string;
+	googleAvatar: string;
 }
 
 export interface Recipe {
