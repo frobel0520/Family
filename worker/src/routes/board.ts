@@ -73,7 +73,13 @@ export async function handleCreateBoardPost(request: Request, env: Env, ctx: Exe
 	ctx.waitUntil(
 		notifyAll(
 			env,
-			{ title: `📌 ${auth.session.name} 發了新貼文`, body: excerpt(newPost.content), url: "/Family/#/board" },
+			{
+				title: `📌 ${auth.session.name} 發了新貼文`,
+				body: excerpt(newPost.content),
+				url: "/Family/#/board",
+				tag: "board",
+				icon: auth.session.avatar,
+			},
 			auth.session.email,
 		),
 	);
@@ -162,7 +168,13 @@ export async function handleCreateBoardComment(request: Request, env: Env, ctx: 
 	ctx.waitUntil(
 		notifyAll(
 			env,
-			{ title: `💬 ${auth.session.name} 在佈告欄留言`, body: excerpt(newComment.content), url: "/Family/#/board" },
+			{
+				title: `💬 ${auth.session.name} 在佈告欄留言`,
+				body: excerpt(newComment.content),
+				url: "/Family/#/board",
+				tag: "board",
+				icon: auth.session.avatar,
+			},
 			auth.session.email,
 		),
 	);

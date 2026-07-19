@@ -46,7 +46,13 @@ export async function handleCreateOrder(request: Request, env: Env, ctx: Executi
 	ctx.waitUntil(
 		notifyAll(
 			env,
-			{ title: `🍽️ ${auth.session.name} 點菜了`, body: newOrder.dishName, url: "/Family/#/orders" },
+			{
+				title: `🍽️ ${auth.session.name} 點菜了`,
+				body: newOrder.dishName,
+				url: "/Family/#/orders",
+				tag: "orders",
+				icon: auth.session.avatar,
+			},
 			auth.session.email,
 		),
 	);

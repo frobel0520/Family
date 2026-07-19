@@ -40,6 +40,8 @@ export async function handleAuthCallback(request: Request, env: Env, ctx: Execut
 						title: "🛡️ 新的登入申請",
 						body: `${user.name}（${user.email}）想登入 Family，點開審核`,
 						url: "/Family/#/admin",
+						tag: "admin",
+						icon: user.avatar,
 					}),
 				);
 			}

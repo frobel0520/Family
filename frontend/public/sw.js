@@ -10,7 +10,8 @@ self.addEventListener("activate", (event) => {
 	event.waitUntil(self.clients.claim());
 });
 
-// 推播：顯示通知（payload 由 Worker 端送 JSON：{ title, body, url }）
+// 推播：顯示通知（payload 由 Worker 端送 JSON：{ title, body, url, tag, icon }）
+// 同 tag（board/orders/admin）的通知摺疊成一則，內文顯示累計數。
 self.addEventListener("push", (event) => {
 	if (!event.data) return;
 	let payload;
@@ -19,13 +20,22 @@ self.addEventListener("push", (event) => {
 	} catch {
 		payload = { title: "Family", body: event.data.text() };
 	}
+	const tag = payload.tag || "family";
 	event.waitUntil(
-		self.registration.showNotification(payload.title ?? "Family", {
-			body: payload.body ?? "",
-			icon: "/Family/icon-192.png",
-			badge: "/Family/icon-192.png",
-			data: { url: payload.url ?? "/Family/" },
-		}),
+		(async () => {
+			// 同 tag 已有未讀 → 疊加計數（新通知會直接取代舊的那則）
+			const existing = await self.registration.getNotifications({ tag });
+			const count = (existing[0]?.data?.count ?? 0) + 1;
+			const body = count > 1 ? `${payload.body ?? ""}\n（還有 ${count - 1} 則較早的通知）` : (payload.body ?? "");
+			await self.registration.showNotification(payload.title ?? "Family", {
+				body,
+				tag,
+				// 縮圖：觸發者的大頭貼；badge 是狀態列的單色剪影（Android 用；iOS 都不支援、固定顯示 App 圖示）
+				icon: payload.icon || "/Family/icon-192.png",
+				badge: "/Family/badge.png",
+				data: { url: payload.url ?? "/Family/", count },
+			});
+		})(),
 	);
 });
 
