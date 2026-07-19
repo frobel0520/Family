@@ -29,6 +29,13 @@ export const createBoardPost = (token: string, content: string) =>
 		body: JSON.stringify({ content }),
 	});
 
+export const deleteBoardPost = (token: string, id: string) =>
+	request<{ ok: true }>("/api/board/delete", {
+		method: "POST",
+		headers: authHeaders(token),
+		body: JSON.stringify({ id }),
+	});
+
 export const listRecipes = () => request<Recipe[]>("/api/recipes");
 
 export const createRecipe = (token: string, data: { name: string; category: string; recipeImageBase64?: string }) =>
@@ -52,6 +59,13 @@ export const createOrder = (token: string, dishName: string) =>
 		method: "POST",
 		headers: authHeaders(token),
 		body: JSON.stringify({ dishName }),
+	});
+
+export const deleteOrder = (token: string, id: string) =>
+	request<{ ok: true }>("/api/orders/delete", {
+		method: "POST",
+		headers: authHeaders(token),
+		body: JSON.stringify({ id }),
 	});
 
 export const listPendingRequests = (token: string) =>
