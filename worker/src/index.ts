@@ -1,7 +1,7 @@
 import { handleAuthCallback } from "./routes/auth";
 import { handleMe } from "./routes/me";
 import { handleListBoardPosts, handleCreateBoardPost } from "./routes/board";
-import { handleListRecipes, handleCreateRecipe } from "./routes/recipes";
+import { handleListRecipes, handleCreateRecipe, handleUploadRecipeImage } from "./routes/recipes";
 import { handleListOrders, handleCreateOrder } from "./routes/orders";
 import { handleListPending, handleApprove, handleDeny } from "./routes/admin";
 import { jsonResponse } from "./response";
@@ -32,6 +32,10 @@ async function route(request: Request, env: Env): Promise<Response> {
 
 	if (request.method === "POST" && url.pathname === "/api/recipes") {
 		return handleCreateRecipe(request, env);
+	}
+
+	if (request.method === "POST" && url.pathname === "/api/recipes/recipe-image") {
+		return handleUploadRecipeImage(request, env);
 	}
 
 	if (request.method === "GET" && url.pathname === "/api/orders") {

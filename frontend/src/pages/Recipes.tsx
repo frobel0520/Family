@@ -1,11 +1,10 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../auth/AuthContext";
-import { createRecipe, listRecipes } from "../api";
+import { createRecipe, listRecipes, uploadRecipeImage } from "../api";
 import type { Recipe } from "../types";
 import { RECIPE_CATEGORIES } from "../recipeCategories";
 import { fileToDataUrl } from "../fileToDataUrl";
-import { RecipePhoto } from "../components/RecipePhoto";
-import { PhotoCredits } from "../components/PhotoCredits";
+import { RecipeCard, RecipeModal } from "../components/RecipeCard";
 import { Pager } from "../components/Pager";
 
 const PAGE_SIZE = 10;
@@ -17,10 +16,11 @@ export function Recipes() {
 	const [loadError, setLoadError] = useState<string | null>(null);
 	const [activeCategory, setActiveCategory] = useState<string | null>(null);
 	const [page, setPage] = useState(1);
+	const [viewing, setViewing] = useState<Recipe | null>(null);
 
 	const [name, setName] = useState("");
 	const [category, setCategory] = useState<string>(RECIPE_CATEGORIES[0]);
-	const [photoFile, setPhotoFile] = useState<File | null>(null);
+	const [recipeFile, setRecipeFile] = useState<File | null>(null);
 	const [submitting, setSubmitting] = useState(false);
 	const [submitError, setSubmitError] = useState<string | null>(null);
 
@@ -38,21 +38,27 @@ export function Recipes() {
 
 	async function handleSubmit(e: React.FormEvent) {
 		e.preventDefault();
-		if (!session || !name.trim() || !photoFile) return;
+		if (!session || !name.trim()) return;
 
 		setSubmitting(true);
 		setSubmitError(null);
 		try {
-			const photoBase64 = await fileToDataUrl(photoFile);
-			const newRecipe = await createRecipe(session.token, { name: name.trim(), category, photoBase64 });
+			const recipeImageBase64 = recipeFile ? await fileToDataUrl(recipeFile) : undefined;
+			const newRecipe = await createRecipe(session.token, { name: name.trim(), category, recipeImageBase64 });
 			setRecipes((prev) => [...prev, newRecipe]);
 			setName("");
-			setPhotoFile(null);
+			setRecipeFile(null);
 		} catch (err) {
 			setSubmitError((err as Error).message);
 		} finally {
 			setSubmitting(false);
 		}
+	}
+
+	async function handleUploadRecipe(recipe: Recipe, dataUrl: string) {
+		if (!session) return;
+		const updated = await uploadRecipeImage(session.token, recipe.id, dataUrl);
+		setRecipes((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
 	}
 
 	const visibleRecipes = activeCategory ? recipes.filter((r) => r.category === activeCategory) : recipes;
@@ -81,7 +87,7 @@ export function Recipes() {
 
 			{session ? (
 				<form className="recipe-form" onSubmit={handleSubmit}>
-					<input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="菜名" />
+					<input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="新菜色名稱" />
 					<select value={category} onChange={(e) => setCategory(e.target.value)}>
 						{RECIPE_CATEGORIES.map((c) => (
 							<option key={c} value={c}>
@@ -89,18 +95,21 @@ export function Recipes() {
 							</option>
 						))}
 					</select>
-					<input
-						type="file"
-						accept="image/*"
-						onChange={(e) => setPhotoFile(e.target.files?.[0] ?? null)}
-					/>
-					<button type="submit" disabled={submitting || !name.trim() || !photoFile}>
-						{submitting ? "上傳中…" : "上傳食譜"}
+					<label className="recipe-file-label">
+						食譜照片（可選）
+						<input
+							type="file"
+							accept="image/*"
+							onChange={(e) => setRecipeFile(e.target.files?.[0] ?? null)}
+						/>
+					</label>
+					<button type="submit" disabled={submitting || !name.trim()}>
+						{submitting ? "新增中…" : "新增菜色"}
 					</button>
 					{submitError && <p className="error">{submitError}</p>}
 				</form>
 			) : (
-				<p className="hint">登入後才能上傳食譜。</p>
+				<p className="hint">登入後可以新增菜色、上傳食譜照片（點卡片上的「＋食譜」）。</p>
 			)}
 
 			{loading && <p>載入中…</p>}
@@ -108,17 +117,19 @@ export function Recipes() {
 
 			<div className="recipe-grid">
 				{pageRecipes.map((recipe) => (
-					<div key={recipe.id} className="recipe-card">
-						<RecipePhoto photoUrl={recipe.photoUrl} name={recipe.name} />
-						<div className="recipe-name">{recipe.name}</div>
-					</div>
+					<RecipeCard
+						key={recipe.id}
+						recipe={recipe}
+						onViewRecipe={setViewing}
+						onUploadRecipe={session ? handleUploadRecipe : undefined}
+					/>
 				))}
 			</div>
 			{!loading && visibleRecipes.length === 0 && <p className="hint">這個分類還沒有食譜。</p>}
 
 			<Pager page={page} totalPages={totalPages} onChange={setPage} />
 
-			<PhotoCredits recipes={recipes} />
+			{viewing && <RecipeModal recipe={viewing} onClose={() => setViewing(null)} />}
 		</div>
 	);
 }
