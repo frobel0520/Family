@@ -23,6 +23,8 @@ export interface PushMessage {
 	title: string;
 	body: string;
 	url?: string; // 點通知後開啟的頁面，例如 "/Family/#/board"
+	tag?: string; // 同 tag 的通知會摺疊成一則（Android；iOS 系統本來就會依 App 堆疊）
+	icon?: string; // 通知縮圖，放觸發者的大頭貼（iOS 不支援自訂，固定顯示 App 圖示）
 }
 
 async function listAllSubscriptions(env: Env): Promise<{ key: string; value: StoredSubscription }[]> {
