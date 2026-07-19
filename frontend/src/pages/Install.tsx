@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { useAuth } from "../auth/AuthContext";
+import { disablePush, enablePush, getCurrentSubscription, pushSupported } from "../push";
 
 /** 是否已經以「已安裝的 App」模式開啟（主畫面圖示點進來的） */
 function isStandalone(): boolean {
@@ -23,6 +25,81 @@ interface BeforeInstallPromptEvent extends Event {
 	prompt: () => Promise<void>;
 }
 
+/** 通知開關區塊：訂閱狀態 + 開啟/關閉按鈕 */
+function NotificationSection({ installed, platform }: { installed: boolean; platform: Platform }) {
+	const { session } = useAuth();
+	const [subscribed, setSubscribed] = useState<boolean | null>(null); // null = 還在查
+	const [busy, setBusy] = useState(false);
+	const [error, setError] = useState<string | null>(null);
+
+	useEffect(() => {
+		getCurrentSubscription()
+			.then((sub) => setSubscribed(!!sub))
+			.catch(() => setSubscribed(false));
+	}, []);
+
+	if (!pushSupported()) {
+		// iOS 未安裝時整組 Push API 都不存在 → 引導先安裝，而不是說「不支援」
+		if (platform === "ios" && !installed) {
+			return (
+				<section className="install-section">
+					<h2>🔔 通知</h2>
+					<p className="hint">iPhone 要先照上面步驟「加入主畫面」，再從主畫面開啟 App，才能開啟通知。</p>
+				</section>
+			);
+		}
+		return (
+			<section className="install-section">
+				<h2>🔔 通知</h2>
+				<p className="hint">這個瀏覽器不支援推播通知。</p>
+			</section>
+		);
+	}
+
+	if (!session) {
+		return (
+			<section className="install-section">
+				<h2>🔔 通知</h2>
+				<p className="hint">登入後才能開啟通知。</p>
+			</section>
+		);
+	}
+
+	async function toggle() {
+		if (!session) return;
+		setBusy(true);
+		setError(null);
+		try {
+			if (subscribed) {
+				await disablePush(session.token);
+				setSubscribed(false);
+			} else {
+				await enablePush(session.token);
+				setSubscribed(true);
+			}
+		} catch (err) {
+			setError((err as Error).message);
+		} finally {
+			setBusy(false);
+		}
+	}
+
+	return (
+		<section className="install-section">
+			<h2>🔔 通知</h2>
+			<p className="hint">
+				開啟後，這台裝置會收到：家人的新貼文與留言、點菜
+				{session.isOwner ? "、還有新的登入申請（管理員限定）" : ""}。自己的動作不會通知自己。
+			</p>
+			<button type="button" disabled={busy || subscribed === null} onClick={toggle}>
+				{subscribed === null ? "檢查中…" : busy ? "處理中…" : subscribed ? "🔕 關閉這台裝置的通知" : "🔔 開啟通知"}
+			</button>
+			{subscribed && <p className="hint">✅ 這台裝置已開啟通知。</p>}
+			{error && <p className="error">{error}</p>}
+		</section>
+	);
+}
+
 export function Install() {
 	const [platform] = useState<Platform>(detectPlatform);
 	const [installed] = useState<boolean>(isStandalone);
@@ -42,6 +119,7 @@ export function Install() {
 			<div className="page install-page">
 				<h1>安裝到手機</h1>
 				<p className="install-done">✅ 已經安裝好了！你現在就是從主畫面的 App 開啟的。</p>
+				<NotificationSection installed={installed} platform={platform} />
 			</div>
 		);
 	}
@@ -91,6 +169,8 @@ export function Install() {
 					)}
 				</section>
 			)}
+
+			<NotificationSection installed={installed} platform={platform} />
 		</div>
 	);
 }

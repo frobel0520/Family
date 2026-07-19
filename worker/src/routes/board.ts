@@ -1,6 +1,7 @@
 import { requireSession } from "../session";
 import { readJsonArrayFile, updateJsonArrayFile } from "../github-contents";
 import { jsonResponse } from "../response";
+import { excerpt, notifyAll } from "../notify";
 
 interface BoardComment {
 	id: string;
@@ -26,7 +27,7 @@ export async function handleListBoardPosts(_request: Request, env: Env): Promise
 	return jsonResponse(posts);
 }
 
-export async function handleCreateBoardPost(request: Request, env: Env): Promise<Response> {
+export async function handleCreateBoardPost(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
 	const auth = await requireSession(request, env);
 	if ("response" in auth) return auth.response;
 
@@ -57,6 +58,14 @@ export async function handleCreateBoardPost(request: Request, env: Env): Promise
 		"data/board.json",
 		(posts) => [...posts, newPost],
 		`board: new post by ${auth.session.name}`,
+	);
+
+	ctx.waitUntil(
+		notifyAll(
+			env,
+			{ title: `📌 ${auth.session.name} 發了新貼文`, body: excerpt(newPost.content), url: "/Family/#/board" },
+			auth.session.email,
+		),
 	);
 
 	return jsonResponse(newPost, 201);
@@ -97,7 +106,7 @@ export async function handleDeleteBoardPost(request: Request, env: Env): Promise
 }
 
 /** 在貼文底下留言。 */
-export async function handleCreateBoardComment(request: Request, env: Env): Promise<Response> {
+export async function handleCreateBoardComment(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
 	const auth = await requireSession(request, env);
 	if ("response" in auth) return auth.response;
 
@@ -138,6 +147,14 @@ export async function handleCreateBoardComment(request: Request, env: Env): Prom
 	if (!found) {
 		return jsonResponse({ error: "Post not found" }, 404);
 	}
+
+	ctx.waitUntil(
+		notifyAll(
+			env,
+			{ title: `💬 ${auth.session.name} 在佈告欄留言`, body: excerpt(newComment.content), url: "/Family/#/board" },
+			auth.session.email,
+		),
+	);
 
 	return jsonResponse(newComment, 201);
 }
