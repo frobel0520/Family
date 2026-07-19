@@ -1,6 +1,7 @@
 import { requireSession } from "../session";
 import { readJsonArrayFile, updateJsonArrayFile } from "../github-contents";
 import { jsonResponse } from "../response";
+import { notifyAll } from "../notify";
 
 interface Order {
 	id: string;
@@ -14,7 +15,7 @@ export async function handleListOrders(_request: Request, env: Env): Promise<Res
 	return jsonResponse(orders);
 }
 
-export async function handleCreateOrder(request: Request, env: Env): Promise<Response> {
+export async function handleCreateOrder(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
 	const auth = await requireSession(request, env);
 	if ("response" in auth) return auth.response;
 
@@ -40,6 +41,14 @@ export async function handleCreateOrder(request: Request, env: Env): Promise<Res
 		"data/orders.json",
 		(orders) => [...orders, newOrder],
 		`orders: add "${newOrder.dishName}"`,
+	);
+
+	ctx.waitUntil(
+		notifyAll(
+			env,
+			{ title: `🍽️ ${auth.session.name} 點菜了`, body: newOrder.dishName, url: "/Family/#/orders" },
+			auth.session.email,
+		),
 	);
 
 	return jsonResponse(newOrder, 201);
