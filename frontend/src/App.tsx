@@ -8,7 +8,7 @@ import { Board } from "./pages/Board";
 import { Recipes } from "./pages/Recipes";
 import { Orders } from "./pages/Orders";
 import { Admin } from "./pages/Admin";
-import { Install } from "./pages/Install";
+import { Settings } from "./pages/Settings";
 import { AuthCallback } from "./pages/AuthCallback";
 
 function App() {
@@ -28,7 +28,9 @@ function App() {
 						<Route path="/recipes" element={<Recipes />} />
 						<Route path="/orders" element={<Orders />} />
 						<Route path="/admin" element={<Admin />} />
-						<Route path="/install" element={<Install />} />
+						<Route path="/settings" element={<Settings />} />
+						{/* 舊連結相容：/install 改名成 /settings 之前分享過的連結 */}
+						<Route path="/install" element={<Settings />} />
 					</Routes>
 				</Layout>
 			)}

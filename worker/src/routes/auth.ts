@@ -3,6 +3,7 @@ import { signSession } from "../jwt";
 import { jsonResponse } from "../response";
 import { checkAccess, isOwner } from "../access";
 import { notifyEmail } from "../notify";
+import { effectiveIdentity, getProfile } from "../profiles";
 
 const SESSION_TTL_SECONDS = 60 * 60 * 24; // 24h — short-lived, family members just re-login via Google
 
@@ -48,15 +49,28 @@ export async function handleAuthCallback(request: Request, env: Env, ctx: Execut
 			return jsonResponse({ error: message, pending: true }, 403);
 		}
 
+		// 套用個人資料（暱稱/自訂大頭貼）；沒設定就用 Google 的
+		const profile = await getProfile(env, user.email);
+		const identity = effectiveIdentity(env, user, profile);
+		const owner = isOwner(env, user.email);
+
 		const token = await signSession(
-			{ sub: user.id, name: user.name, email: user.email, avatar: user.avatar, isOwner: isOwner(env, user.email) },
+			{
+				sub: user.id,
+				name: identity.name,
+				email: user.email,
+				avatar: identity.avatar,
+				googleName: user.name,
+				googleAvatar: user.avatar,
+				isOwner: owner,
+			},
 			env.JWT_SECRET,
 			SESSION_TTL_SECONDS,
 		);
 
 		return jsonResponse({
 			token,
-			user: { name: user.name, avatar: user.avatar, isOwner: isOwner(env, user.email) },
+			user: { name: identity.name, avatar: identity.avatar, isOwner: owner, email: user.email.toLowerCase() },
 			expiresIn: SESSION_TTL_SECONDS,
 		});
 	} catch (err) {
