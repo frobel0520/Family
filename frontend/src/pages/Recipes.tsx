@@ -18,6 +18,7 @@ export function Recipes() {
 	const [page, setPage] = useState(1);
 	const [viewing, setViewing] = useState<Recipe | null>(null);
 
+	const [formOpen, setFormOpen] = useState(false);
 	const [name, setName] = useState("");
 	const [category, setCategory] = useState<string>(RECIPE_CATEGORIES[0]);
 	const [recipeFile, setRecipeFile] = useState<File | null>(null);
@@ -48,6 +49,7 @@ export function Recipes() {
 			setRecipes((prev) => [...prev, newRecipe]);
 			setName("");
 			setRecipeFile(null);
+			setFormOpen(false);
 		} catch (err) {
 			setSubmitError((err as Error).message);
 		} finally {
@@ -68,7 +70,20 @@ export function Recipes() {
 
 	return (
 		<div className="page">
-			<h1>食譜庫</h1>
+			<div className="page-title-row">
+				<h1>食譜</h1>
+				{session && (
+					<button
+						type="button"
+						className="add-toggle-btn"
+						aria-label={formOpen ? "收合新增菜色" : "新增菜色"}
+						title={formOpen ? "收合" : "新增菜色"}
+						onClick={() => setFormOpen((v) => !v)}
+					>
+						{formOpen ? "✕" : "＋"}
+					</button>
+				)}
+			</div>
 
 			<div className="category-filter">
 				<button type="button" className={activeCategory === null ? "active" : ""} onClick={() => selectCategory(null)}>
@@ -86,7 +101,7 @@ export function Recipes() {
 				))}
 			</div>
 
-			{session ? (
+			{session && formOpen && (
 				<form className="recipe-form" onSubmit={handleSubmit}>
 					<input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="新菜色名稱" />
 					<select value={category} onChange={(e) => setCategory(e.target.value)}>
@@ -109,9 +124,8 @@ export function Recipes() {
 					</button>
 					{submitError && <p className="error">{submitError}</p>}
 				</form>
-			) : (
-				<p className="hint">登入後可以新增菜色、上傳食譜照片（點卡片上的「＋食譜」）。</p>
 			)}
+			{!session && <p className="hint">登入後可以新增菜色、上傳食譜照片（點卡片上的「＋食譜」）。</p>}
 
 			{loading && <p>載入中…</p>}
 			{loadError && <p className="error">載入失敗：{loadError}</p>}

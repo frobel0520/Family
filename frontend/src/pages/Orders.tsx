@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../auth/AuthContext";
-import { createOrder, listOrders, listRecipes } from "../api";
+import { createOrder, deleteOrder, listOrders, listRecipes } from "../api";
 import type { Order, Recipe } from "../types";
 import { RECIPE_CATEGORIES } from "../recipeCategories";
 import { RecipeCard, RecipeModal } from "../components/RecipeCard";
@@ -47,6 +47,16 @@ export function Orders() {
 	function selectCategory(c: string) {
 		setCategory(c);
 		setPage(1);
+	}
+
+	async function handleDelete(order: Order) {
+		if (!session) return;
+		try {
+			await deleteOrder(session.token, order.id);
+			setOrders((prev) => prev.filter((o) => o.id !== order.id));
+		} catch (err) {
+			setAddError((err as Error).message);
+		}
 	}
 
 	const results = category ? recipes.filter((r) => r.category === category) : [];
@@ -100,7 +110,19 @@ export function Orders() {
 					<h2>訂單列表</h2>
 					<ul>
 						{orders.map((order) => (
-							<li key={order.id}>{order.dishName}</li>
+							<li key={order.id} className="order-item">
+								<span>{order.dishName}</span>
+								{session && (
+									<button
+										type="button"
+										className="delete-x"
+										aria-label={`刪除 ${order.dishName}`}
+										onClick={() => handleDelete(order)}
+									>
+										✕
+									</button>
+								)}
+							</li>
 						))}
 					</ul>
 					{orders.length === 0 && <p className="hint">目前沒有點菜紀錄。</p>}
