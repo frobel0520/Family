@@ -31,11 +31,18 @@ export const createBoardPost = (token: string, content: string) =>
 
 export const listRecipes = () => request<Recipe[]>("/api/recipes");
 
-export const createRecipe = (token: string, data: { name: string; category: string; photoBase64: string }) =>
+export const createRecipe = (token: string, data: { name: string; category: string; recipeImageBase64?: string }) =>
 	request<Recipe>("/api/recipes", {
 		method: "POST",
 		headers: authHeaders(token),
 		body: JSON.stringify(data),
+	});
+
+export const uploadRecipeImage = (token: string, id: string, photoBase64: string) =>
+	request<Recipe>("/api/recipes/recipe-image", {
+		method: "POST",
+		headers: authHeaders(token),
+		body: JSON.stringify({ id, photoBase64 }),
 	});
 
 export const listOrders = () => request<Order[]>("/api/orders");
