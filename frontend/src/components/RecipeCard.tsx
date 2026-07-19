@@ -67,19 +67,68 @@ export function RecipeCard({
 	);
 }
 
-/** 點「食譜」後的彈窗：顯示該道菜的食譜圖片。 */
-export function RecipeModal({ recipe, onClose }: { recipe: Recipe; onClose: () => void }) {
+/** 點「食譜」後的彈窗：顯示該道菜的食譜圖片，登入者可更換圖片。 */
+export function RecipeModal({
+	recipe,
+	onClose,
+	onReplace,
+}: {
+	recipe: Recipe;
+	onClose: () => void;
+	onReplace?: (recipe: Recipe, dataUrl: string) => Promise<void>;
+}) {
+	const fileRef = useRef<HTMLInputElement>(null);
+	const [replacing, setReplacing] = useState(false);
+	const [error, setError] = useState<string | null>(null);
+
 	if (!recipe.recipeUrl) return null;
+	// 換圖後路徑不變，用更新時間當版本參數避免瀏覽器快取顯示舊圖
+	const imgSrc = recipe.recipeUpdatedAt
+		? `${recipe.recipeUrl}?v=${encodeURIComponent(recipe.recipeUpdatedAt)}`
+		: recipe.recipeUrl;
+
+	async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+		const file = e.target.files?.[0];
+		e.target.value = "";
+		if (!file || !onReplace) return;
+		setReplacing(true);
+		setError(null);
+		try {
+			const dataUrl = await fileToDataUrl(file);
+			await onReplace(recipe, dataUrl);
+		} catch (err) {
+			setError((err as Error).message);
+		} finally {
+			setReplacing(false);
+		}
+	}
+
 	return (
 		<div className="recipe-modal-backdrop" onClick={onClose}>
 			<div className="recipe-modal" onClick={(e) => e.stopPropagation()}>
 				<div className="recipe-modal-header">
 					<span>{recipe.name}｜食譜</span>
-					<button type="button" onClick={onClose} aria-label="關閉">
-						✕
-					</button>
+					<div className="recipe-modal-actions">
+						{onReplace && (
+							<>
+								<button
+									type="button"
+									className="recipe-modal-replace"
+									disabled={replacing}
+									onClick={() => fileRef.current?.click()}
+								>
+									{replacing ? "更換中…" : "更換圖片"}
+								</button>
+								<input ref={fileRef} type="file" accept="image/*" hidden onChange={handleFile} />
+							</>
+						)}
+						<button type="button" className="recipe-modal-close" onClick={onClose} aria-label="關閉">
+							✕
+						</button>
+					</div>
 				</div>
-				<img src={recipe.recipeUrl} alt={`${recipe.name} 的食譜`} />
+				{error && <p className="error recipe-modal-error">{error}</p>}
+				<img src={imgSrc} alt={`${recipe.name} 的食譜`} />
 			</div>
 		</div>
 	);
