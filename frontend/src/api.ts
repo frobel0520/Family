@@ -1,4 +1,4 @@
-import type { BoardPost, Order, PendingRequest, Recipe } from "./types";
+import type { BoardComment, BoardPost, Order, PendingRequest, Recipe } from "./types";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL;
 
@@ -34,6 +34,20 @@ export const deleteBoardPost = (token: string, id: string) =>
 		method: "POST",
 		headers: authHeaders(token),
 		body: JSON.stringify({ id }),
+	});
+
+export const createBoardComment = (token: string, postId: string, content: string) =>
+	request<BoardComment>("/api/board/comment", {
+		method: "POST",
+		headers: authHeaders(token),
+		body: JSON.stringify({ postId, content }),
+	});
+
+export const deleteBoardComment = (token: string, postId: string, commentId: string) =>
+	request<{ ok: true }>("/api/board/comment/delete", {
+		method: "POST",
+		headers: authHeaders(token),
+		body: JSON.stringify({ postId, commentId }),
 	});
 
 export const listRecipes = () => request<Recipe[]>("/api/recipes");
