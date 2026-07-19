@@ -4,7 +4,7 @@ import { useAuth } from "../auth/AuthContext";
 const TABS = [
 	{ to: "/", icon: "🏠", label: "首頁", end: true },
 	{ to: "/board", icon: "📌", label: "佈告欄" },
-	{ to: "/recipes", icon: "🍳", label: "食譜庫" },
+	{ to: "/recipes", icon: "🍳", label: "食譜" },
 	{ to: "/orders", icon: "🍽️", label: "點菜" },
 ];
 

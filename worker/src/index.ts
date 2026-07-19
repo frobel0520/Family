@@ -1,8 +1,8 @@
 import { handleAuthCallback } from "./routes/auth";
 import { handleMe } from "./routes/me";
-import { handleListBoardPosts, handleCreateBoardPost } from "./routes/board";
+import { handleListBoardPosts, handleCreateBoardPost, handleDeleteBoardPost } from "./routes/board";
 import { handleListRecipes, handleCreateRecipe, handleUploadRecipeImage } from "./routes/recipes";
-import { handleListOrders, handleCreateOrder } from "./routes/orders";
+import { handleListOrders, handleCreateOrder, handleDeleteOrder } from "./routes/orders";
 import { handleListPending, handleApprove, handleDeny } from "./routes/admin";
 import { jsonResponse } from "./response";
 import { handlePreflight, withCors } from "./cors";
@@ -26,6 +26,10 @@ async function route(request: Request, env: Env): Promise<Response> {
 		return handleCreateBoardPost(request, env);
 	}
 
+	if (request.method === "POST" && url.pathname === "/api/board/delete") {
+		return handleDeleteBoardPost(request, env);
+	}
+
 	if (request.method === "GET" && url.pathname === "/api/recipes") {
 		return handleListRecipes(request, env);
 	}
@@ -44,6 +48,10 @@ async function route(request: Request, env: Env): Promise<Response> {
 
 	if (request.method === "POST" && url.pathname === "/api/orders") {
 		return handleCreateOrder(request, env);
+	}
+
+	if (request.method === "POST" && url.pathname === "/api/orders/delete") {
+		return handleDeleteOrder(request, env);
 	}
 
 	if (request.method === "GET" && url.pathname === "/api/admin/pending") {

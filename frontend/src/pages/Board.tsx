@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../auth/AuthContext";
-import { createBoardPost, listBoardPosts } from "../api";
+import { createBoardPost, deleteBoardPost, listBoardPosts } from "../api";
 import type { BoardPost } from "../types";
 import { Pager } from "../components/Pager";
 
@@ -45,6 +45,17 @@ export function Board() {
 		}
 	}
 
+	async function handleDelete(post: BoardPost) {
+		if (!session) return;
+		if (!window.confirm("刪除這則留言？")) return;
+		try {
+			await deleteBoardPost(session.token, post.id);
+			setPosts((prev) => prev.filter((p) => p.id !== post.id));
+		} catch (err) {
+			setLoadError((err as Error).message);
+		}
+	}
+
 	const totalPages = Math.max(1, Math.ceil(posts.length / PAGE_SIZE));
 	const visiblePosts = posts.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
@@ -79,6 +90,16 @@ export function Board() {
 							<strong>{post.author}</strong> · {formatTime(post.createdAt)}
 						</div>
 						<p>{post.content}</p>
+						{session && (session.isOwner || post.author === session.name) && (
+							<button
+								type="button"
+								className="delete-x"
+								aria-label="刪除留言"
+								onClick={() => handleDelete(post)}
+							>
+								✕
+							</button>
+						)}
 					</li>
 				))}
 			</ul>

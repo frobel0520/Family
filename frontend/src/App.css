@@ -326,6 +326,60 @@
 	display: block;
 }
 
+.page-title-row {
+	display: flex;
+	align-items: center;
+	gap: 0.8rem;
+}
+
+.page-title-row h1 {
+	margin-right: auto;
+}
+
+.add-toggle-btn {
+	width: 2.4rem;
+	height: 2.4rem;
+	padding: 0;
+	border-radius: 50%;
+	font-size: 1.25rem;
+	line-height: 1;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.delete-x {
+	background: none;
+	border: none;
+	color: var(--text-soft);
+	font-size: 0.9rem;
+	padding: 0.15rem 0.4rem;
+	cursor: pointer;
+	border-radius: 6px;
+}
+
+.delete-x:hover:not(:disabled) {
+	background: var(--accent-soft);
+	color: var(--danger);
+}
+
+.board-post {
+	position: relative;
+}
+
+.board-post .delete-x {
+	position: absolute;
+	top: 0.45rem;
+	right: 0.5rem;
+}
+
+.order-item {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.5rem;
+}
+
 .recipe-photo-box {
 	position: relative;
 }

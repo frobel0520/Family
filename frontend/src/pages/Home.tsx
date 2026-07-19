@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 
 const ENTRIES = [
 	{ to: "/board", icon: "📌", title: "佈告欄", desc: "看看家人留了什麼話" },
-	{ to: "/recipes", icon: "🍳", title: "食譜庫", desc: "瀏覽或上傳家裡的食譜" },
+	{ to: "/recipes", icon: "🍳", title: "食譜", desc: "瀏覽或上傳家裡的食譜" },
 	{ to: "/orders", icon: "🍽️", title: "點菜", desc: "今天想吃什麼？點起來" },
 ];
 
