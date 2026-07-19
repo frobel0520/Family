@@ -1,14 +1,26 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../auth/AuthContext";
-import { createBoardPost, deleteBoardPost, listBoardPosts } from "../api";
-import type { BoardPost } from "../types";
+import {
+	createBoardComment,
+	createBoardPost,
+	deleteBoardComment,
+	deleteBoardPost,
+	listBoardPosts,
+} from "../api";
+import type { BoardComment, BoardPost } from "../types";
 import { Pager } from "../components/Pager";
+import { Avatar } from "../components/Avatar";
+import { ConfirmDialog } from "../components/ConfirmDialog";
 
 const PAGE_SIZE = 5;
 
 function formatTime(iso: string): string {
-	return new Date(iso).toLocaleString("zh-TW");
+	return new Date(iso).toLocaleString("zh-TW", { dateStyle: "short", timeStyle: "short" });
 }
+
+type PendingDelete =
+	| { kind: "post"; post: BoardPost }
+	| { kind: "comment"; postId: string; comment: BoardComment };
 
 export function Board() {
 	const { session } = useAuth();
@@ -19,6 +31,10 @@ export function Board() {
 	const [submitting, setSubmitting] = useState(false);
 	const [submitError, setSubmitError] = useState<string | null>(null);
 	const [page, setPage] = useState(1);
+	const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
+	const [commentingId, setCommentingId] = useState<string | null>(null);
+	const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null);
+	const [deleting, setDeleting] = useState(false);
 
 	useEffect(() => {
 		listBoardPosts()
@@ -26,6 +42,10 @@ export function Board() {
 			.catch((err: Error) => setLoadError(err.message))
 			.finally(() => setLoading(false));
 	}, []);
+
+	function canDelete(author: string): boolean {
+		return !!session && (session.isOwner || author === session.name);
+	}
 
 	async function handleSubmit(e: React.FormEvent) {
 		e.preventDefault();
@@ -45,14 +65,47 @@ export function Board() {
 		}
 	}
 
-	async function handleDelete(post: BoardPost) {
-		if (!session) return;
-		if (!window.confirm("刪除這則留言？")) return;
+	async function handleAddComment(post: BoardPost) {
+		const draft = (commentDrafts[post.id] ?? "").trim();
+		if (!session || !draft) return;
+
+		setCommentingId(post.id);
+		setSubmitError(null);
 		try {
-			await deleteBoardPost(session.token, post.id);
-			setPosts((prev) => prev.filter((p) => p.id !== post.id));
+			const newComment = await createBoardComment(session.token, post.id, draft);
+			setPosts((prev) =>
+				prev.map((p) => (p.id === post.id ? { ...p, comments: [...(p.comments ?? []), newComment] } : p)),
+			);
+			setCommentDrafts((prev) => ({ ...prev, [post.id]: "" }));
+		} catch (err) {
+			setSubmitError((err as Error).message);
+		} finally {
+			setCommentingId(null);
+		}
+	}
+
+	async function confirmDelete() {
+		if (!session || !pendingDelete) return;
+		setDeleting(true);
+		try {
+			if (pendingDelete.kind === "post") {
+				await deleteBoardPost(session.token, pendingDelete.post.id);
+				setPosts((prev) => prev.filter((p) => p.id !== pendingDelete.post.id));
+			} else {
+				const { postId, comment } = pendingDelete;
+				await deleteBoardComment(session.token, postId, comment.id);
+				setPosts((prev) =>
+					prev.map((p) =>
+						p.id === postId ? { ...p, comments: (p.comments ?? []).filter((c) => c.id !== comment.id) } : p,
+					),
+				);
+			}
+			setPendingDelete(null);
 		} catch (err) {
 			setLoadError((err as Error).message);
+			setPendingDelete(null);
+		} finally {
+			setDeleting(false);
 		}
 	}
 
@@ -68,16 +121,16 @@ export function Board() {
 					<textarea
 						value={content}
 						onChange={(e) => setContent(e.target.value)}
-						placeholder="留言..."
+						placeholder="想說點什麼..."
 						rows={3}
 					/>
 					<button type="submit" disabled={submitting || !content.trim()}>
-						{submitting ? "送出中…" : "送出留言"}
+						{submitting ? "送出中…" : "發布"}
 					</button>
 					{submitError && <p className="error">{submitError}</p>}
 				</form>
 			) : (
-				<p className="hint">登入後才能留言。</p>
+				<p className="hint">登入後才能發文與留言。</p>
 			)}
 
 			{loading && <p>載入中…</p>}
@@ -87,25 +140,91 @@ export function Board() {
 				{visiblePosts.map((post) => (
 					<li key={post.id} className="board-post">
 						<div className="board-post-meta">
-							<strong>{post.author}</strong> · {formatTime(post.createdAt)}
+							<Avatar name={post.author} avatar={post.avatar} />
+							<div className="board-post-meta-text">
+								<strong>{post.author}</strong>
+								<span className="board-post-time">{formatTime(post.createdAt)}</span>
+							</div>
 						</div>
 						<p>{post.content}</p>
-						{session && (session.isOwner || post.author === session.name) && (
+						{canDelete(post.author) && (
 							<button
 								type="button"
 								className="delete-x"
-								aria-label="刪除留言"
-								onClick={() => handleDelete(post)}
+								aria-label="刪除貼文"
+								onClick={() => setPendingDelete({ kind: "post", post })}
 							>
 								✕
 							</button>
 						)}
+
+						<div className="board-comments">
+							{(post.comments ?? []).map((comment) => (
+								<div key={comment.id} className="board-comment">
+									<Avatar name={comment.author} avatar={comment.avatar} />
+									<div className="board-comment-body">
+										<div className="board-comment-meta">
+											<strong>{comment.author}</strong>
+											<span className="board-post-time">{formatTime(comment.createdAt)}</span>
+										</div>
+										<p>{comment.content}</p>
+									</div>
+									{canDelete(comment.author) && (
+										<button
+											type="button"
+											className="delete-x"
+											aria-label="刪除留言"
+											onClick={() => setPendingDelete({ kind: "comment", postId: post.id, comment })}
+										>
+											✕
+										</button>
+									)}
+								</div>
+							))}
+
+							{session && (
+								<div className="board-comment-form">
+									<input
+										type="text"
+										value={commentDrafts[post.id] ?? ""}
+										onChange={(e) => setCommentDrafts((prev) => ({ ...prev, [post.id]: e.target.value }))}
+										placeholder="留言..."
+										onKeyDown={(e) => {
+											if (e.key === "Enter" && !e.nativeEvent.isComposing) {
+												e.preventDefault();
+												void handleAddComment(post);
+											}
+										}}
+									/>
+									<button
+										type="button"
+										disabled={commentingId === post.id || !(commentDrafts[post.id] ?? "").trim()}
+										onClick={() => handleAddComment(post)}
+									>
+										{commentingId === post.id ? "…" : "留言"}
+									</button>
+								</div>
+							)}
+						</div>
 					</li>
 				))}
 			</ul>
-			{!loading && posts.length === 0 && <p className="hint">還沒有留言。</p>}
+			{!loading && posts.length === 0 && <p className="hint">還沒有貼文。</p>}
 
 			<Pager page={page} totalPages={totalPages} onChange={setPage} />
+
+			{pendingDelete && (
+				<ConfirmDialog
+					message={
+						pendingDelete.kind === "post"
+							? "確定要刪除這則貼文嗎？貼文底下的留言也會一起刪除。"
+							: "確定要刪除這則留言嗎？"
+					}
+					busy={deleting}
+					onConfirm={confirmDelete}
+					onCancel={() => setPendingDelete(null)}
+				/>
+			)}
 		</div>
 	);
 }

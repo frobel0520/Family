@@ -1,6 +1,12 @@
 import { handleAuthCallback } from "./routes/auth";
 import { handleMe } from "./routes/me";
-import { handleListBoardPosts, handleCreateBoardPost, handleDeleteBoardPost } from "./routes/board";
+import {
+	handleListBoardPosts,
+	handleCreateBoardPost,
+	handleDeleteBoardPost,
+	handleCreateBoardComment,
+	handleDeleteBoardComment,
+} from "./routes/board";
 import { handleListRecipes, handleCreateRecipe, handleUploadRecipeImage } from "./routes/recipes";
 import { handleListOrders, handleCreateOrder, handleDeleteOrder } from "./routes/orders";
 import { handleListPending, handleApprove, handleDeny } from "./routes/admin";
@@ -28,6 +34,14 @@ async function route(request: Request, env: Env): Promise<Response> {
 
 	if (request.method === "POST" && url.pathname === "/api/board/delete") {
 		return handleDeleteBoardPost(request, env);
+	}
+
+	if (request.method === "POST" && url.pathname === "/api/board/comment") {
+		return handleCreateBoardComment(request, env);
+	}
+
+	if (request.method === "POST" && url.pathname === "/api/board/comment/delete") {
+		return handleDeleteBoardComment(request, env);
 	}
 
 	if (request.method === "GET" && url.pathname === "/api/recipes") {
