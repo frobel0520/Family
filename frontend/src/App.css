@@ -339,6 +339,7 @@
 	border-radius: 999px;
 	border: none;
 	background: rgba(255, 255, 255, 0.92);
+	color: #2b2622; /* 全域 button 預設白字，白底上必須明確指定深色 */
 	box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
 	cursor: pointer;
 }
@@ -377,12 +378,29 @@
 	font-weight: 600;
 }
 
-.recipe-modal-header button {
+.recipe-modal-actions {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+}
+
+.recipe-modal-replace {
+	font-size: 0.82rem;
+	padding: 0.3rem 0.8rem;
+}
+
+.recipe-modal-close {
 	border: none;
 	background: none;
+	color: #2b2622; /* 全域 button 預設白字，白色彈窗上要指定深色 */
 	font-size: 1.1rem;
 	cursor: pointer;
 	padding: 0.2rem 0.5rem;
+}
+
+.recipe-modal-error {
+	padding: 0 1rem;
+	margin: 0 0 0.4rem;
 }
 
 .recipe-modal img {

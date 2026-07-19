@@ -59,6 +59,7 @@ export function Recipes() {
 		if (!session) return;
 		const updated = await uploadRecipeImage(session.token, recipe.id, dataUrl);
 		setRecipes((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
+		setViewing((prev) => (prev && prev.id === updated.id ? updated : prev));
 	}
 
 	const visibleRecipes = activeCategory ? recipes.filter((r) => r.category === activeCategory) : recipes;
@@ -129,7 +130,13 @@ export function Recipes() {
 
 			<Pager page={page} totalPages={totalPages} onChange={setPage} />
 
-			{viewing && <RecipeModal recipe={viewing} onClose={() => setViewing(null)} />}
+			{viewing && (
+				<RecipeModal
+					recipe={viewing}
+					onClose={() => setViewing(null)}
+					onReplace={session ? handleUploadRecipe : undefined}
+				/>
+			)}
 		</div>
 	);
 }
