@@ -1,9 +1,19 @@
+export interface BoardComment {
+	id: string;
+	author: string;
+	avatar?: string;
+	content: string;
+	createdAt: string;
+}
+
 export interface BoardPost {
 	id: string;
 	author: string;
+	avatar?: string; // 舊貼文沒有頭像，前端用名字首字替代
 	content: string;
 	createdAt: string;
 	updatedAt: string;
+	comments?: BoardComment[];
 }
 
 export interface Recipe {

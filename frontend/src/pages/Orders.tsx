@@ -5,6 +5,7 @@ import type { Order, Recipe } from "../types";
 import { RECIPE_CATEGORIES } from "../recipeCategories";
 import { RecipeCard, RecipeModal } from "../components/RecipeCard";
 import { Pager } from "../components/Pager";
+import { ConfirmDialog } from "../components/ConfirmDialog";
 
 const PAGE_SIZE = 10;
 
@@ -19,6 +20,8 @@ export function Orders() {
 	const [addingId, setAddingId] = useState<string | null>(null);
 	const [addError, setAddError] = useState<string | null>(null);
 	const [viewing, setViewing] = useState<Recipe | null>(null);
+	const [pendingDelete, setPendingDelete] = useState<Order | null>(null);
+	const [deleting, setDeleting] = useState(false);
 
 	useEffect(() => {
 		Promise.all([listRecipes(), listOrders()])
@@ -49,13 +52,17 @@ export function Orders() {
 		setPage(1);
 	}
 
-	async function handleDelete(order: Order) {
-		if (!session) return;
+	async function confirmDelete() {
+		if (!session || !pendingDelete) return;
+		setDeleting(true);
 		try {
-			await deleteOrder(session.token, order.id);
-			setOrders((prev) => prev.filter((o) => o.id !== order.id));
+			await deleteOrder(session.token, pendingDelete.id);
+			setOrders((prev) => prev.filter((o) => o.id !== pendingDelete.id));
 		} catch (err) {
 			setAddError((err as Error).message);
+		} finally {
+			setDeleting(false);
+			setPendingDelete(null);
 		}
 	}
 
@@ -117,7 +124,7 @@ export function Orders() {
 										type="button"
 										className="delete-x"
 										aria-label={`刪除 ${order.dishName}`}
-										onClick={() => handleDelete(order)}
+										onClick={() => setPendingDelete(order)}
 									>
 										✕
 									</button>
@@ -130,6 +137,15 @@ export function Orders() {
 			</div>
 
 			{viewing && <RecipeModal recipe={viewing} onClose={() => setViewing(null)} />}
+
+			{pendingDelete && (
+				<ConfirmDialog
+					message={`確定要刪除「${pendingDelete.dishName}」這筆點菜嗎？`}
+					busy={deleting}
+					onConfirm={confirmDelete}
+					onCancel={() => setPendingDelete(null)}
+				/>
+			)}
 		</div>
 	);
 }
