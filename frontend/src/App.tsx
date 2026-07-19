@@ -8,6 +8,7 @@ import { Board } from "./pages/Board";
 import { Recipes } from "./pages/Recipes";
 import { Orders } from "./pages/Orders";
 import { Admin } from "./pages/Admin";
+import { Install } from "./pages/Install";
 import { AuthCallback } from "./pages/AuthCallback";
 
 function App() {
@@ -27,6 +28,7 @@ function App() {
 						<Route path="/recipes" element={<Recipes />} />
 						<Route path="/orders" element={<Orders />} />
 						<Route path="/admin" element={<Admin />} />
+						<Route path="/install" element={<Install />} />
 					</Routes>
 				</Layout>
 			)}
