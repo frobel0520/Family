@@ -82,6 +82,20 @@ export const deleteOrder = (token: string, id: string) =>
 		body: JSON.stringify({ id }),
 	});
 
+export const subscribePush = (token: string, subscription: { endpoint: string; keys: { p256dh: string; auth: string } }) =>
+	request<{ ok: true }>("/api/push/subscribe", {
+		method: "POST",
+		headers: authHeaders(token),
+		body: JSON.stringify({ subscription }),
+	});
+
+export const unsubscribePush = (token: string, endpoint: string) =>
+	request<{ ok: true }>("/api/push/unsubscribe", {
+		method: "POST",
+		headers: authHeaders(token),
+		body: JSON.stringify({ endpoint }),
+	});
+
 export const listPendingRequests = (token: string) =>
 	request<PendingRequest[]>("/api/admin/pending", { headers: authHeaders(token) });
 

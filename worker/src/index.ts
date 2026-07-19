@@ -10,14 +10,15 @@ import {
 import { handleListRecipes, handleCreateRecipe, handleUploadRecipeImage } from "./routes/recipes";
 import { handleListOrders, handleCreateOrder, handleDeleteOrder } from "./routes/orders";
 import { handleListPending, handleApprove, handleDeny } from "./routes/admin";
+import { handlePushSubscribe, handlePushUnsubscribe } from "./routes/push";
 import { jsonResponse } from "./response";
 import { handlePreflight, withCors } from "./cors";
 
-async function route(request: Request, env: Env): Promise<Response> {
+async function route(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
 	const url = new URL(request.url);
 
 	if (request.method === "POST" && url.pathname === "/api/auth/callback") {
-		return handleAuthCallback(request, env);
+		return handleAuthCallback(request, env, ctx);
 	}
 
 	if (request.method === "GET" && url.pathname === "/api/me") {
@@ -29,7 +30,7 @@ async function route(request: Request, env: Env): Promise<Response> {
 	}
 
 	if (request.method === "POST" && url.pathname === "/api/board") {
-		return handleCreateBoardPost(request, env);
+		return handleCreateBoardPost(request, env, ctx);
 	}
 
 	if (request.method === "POST" && url.pathname === "/api/board/delete") {
@@ -37,7 +38,7 @@ async function route(request: Request, env: Env): Promise<Response> {
 	}
 
 	if (request.method === "POST" && url.pathname === "/api/board/comment") {
-		return handleCreateBoardComment(request, env);
+		return handleCreateBoardComment(request, env, ctx);
 	}
 
 	if (request.method === "POST" && url.pathname === "/api/board/comment/delete") {
@@ -61,7 +62,7 @@ async function route(request: Request, env: Env): Promise<Response> {
 	}
 
 	if (request.method === "POST" && url.pathname === "/api/orders") {
-		return handleCreateOrder(request, env);
+		return handleCreateOrder(request, env, ctx);
 	}
 
 	if (request.method === "POST" && url.pathname === "/api/orders/delete") {
@@ -80,6 +81,14 @@ async function route(request: Request, env: Env): Promise<Response> {
 		return handleDeny(request, env);
 	}
 
+	if (request.method === "POST" && url.pathname === "/api/push/subscribe") {
+		return handlePushSubscribe(request, env);
+	}
+
+	if (request.method === "POST" && url.pathname === "/api/push/unsubscribe") {
+		return handlePushUnsubscribe(request, env);
+	}
+
 	return jsonResponse({ error: "Not found" }, 404);
 }
 
@@ -89,7 +98,7 @@ export default {
 			return handlePreflight(request, env);
 		}
 
-		const response = await route(request, env);
+		const response = await route(request, env, ctx);
 		return withCors(response, request, env);
 	},
 } satisfies ExportedHandler<Env>;

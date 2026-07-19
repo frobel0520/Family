@@ -11,5 +11,16 @@
 		"GITHUB_REPO": "frobel0520/Family",
 		// Origin header only includes scheme+host, not the /Family/ path.
 		"ALLOWED_ORIGIN": "https://frobel0520.github.io",
+		// Web Push VAPID：公鑰（前端訂閱時也要用同一把，見 frontend/src/push.ts）；
+		// 私鑰是 secret VAPID_PRIVATE_JWK（wrangler secret put，JWK JSON 字串）
+		"VAPID_PUBLIC_KEY": "BC76hqNkJ9FmeXE1FKBXmv0v45n8yUdBeFvqtgmXR9B4n89iITOmjcnIV0z5-q97DQA6ZI7TmWjNueL0RRzmW-o",
+		"VAPID_SUBJECT": "mailto:frobel0520@gmail.com",
 	},
+	// Web Push 訂閱資料（不放公開 repo，所以用 KV）
+	"kv_namespaces": [
+		{
+			"binding": "PUSH_SUBS",
+			"id": "4b6a850ca804404480b4190f2b54e6bc",
+		},
+	],
 }
