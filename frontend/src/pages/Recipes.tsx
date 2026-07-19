@@ -5,6 +5,7 @@ import type { Recipe } from "../types";
 import { RECIPE_CATEGORIES } from "../recipeCategories";
 import { fileToDataUrl } from "../fileToDataUrl";
 import { RecipePhoto } from "../components/RecipePhoto";
+import { PhotoCredits } from "../components/PhotoCredits";
 import { Pager } from "../components/Pager";
 
 const PAGE_SIZE = 10;
@@ -108,7 +109,7 @@ export function Recipes() {
 			<div className="recipe-grid">
 				{pageRecipes.map((recipe) => (
 					<div key={recipe.id} className="recipe-card">
-						<RecipePhoto photoUrl={recipe.photoUrl} name={recipe.name} photoCredit={recipe.photoCredit} />
+						<RecipePhoto photoUrl={recipe.photoUrl} name={recipe.name} />
 						<div className="recipe-name">{recipe.name}</div>
 					</div>
 				))}
@@ -116,6 +117,8 @@ export function Recipes() {
 			{!loading && visibleRecipes.length === 0 && <p className="hint">這個分類還沒有食譜。</p>}
 
 			<Pager page={page} totalPages={totalPages} onChange={setPage} />
+
+			<PhotoCredits recipes={recipes} />
 		</div>
 	);
 }
