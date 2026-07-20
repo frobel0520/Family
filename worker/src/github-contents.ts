@@ -111,6 +111,20 @@ export function updateJsonArrayFile<T>(
 	return updateJsonFile<T[]>(env, path, [], mutate, message);
 }
 
+/**
+ * 直接拿檔案的原始 bytes（binary-safe），給圖片轉發用（routes/image.ts）；用 GitHub 的
+ * raw content negotiation（Accept: application/vnd.github.raw），不像 getFile 那樣把內容
+ * base64 解成文字——那個路徑只適合 JSON，圖片這樣解會爛掉。回傳 null 表示檔案不存在。
+ */
+export async function fetchRawFile(env: Env, path: string): Promise<Response | null> {
+	const { owner, repo } = repoParts(env);
+	const response = await fetch(`${GITHUB_API}/repos/${owner}/${repo}/contents/${path}`, {
+		headers: { ...apiHeaders(env), Accept: "application/vnd.github.raw" },
+	});
+	if (!response.ok) return null;
+	return response;
+}
+
 /** Commits a binary file (e.g. a recipe photo) given its base64 content. */
 export async function putBase64File(env: Env, path: string, base64Content: string, message: string): Promise<void> {
 	const { owner, repo } = repoParts(env);

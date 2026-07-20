@@ -53,7 +53,7 @@ export async function handleAuthCallback(request: Request, env: Env, ctx: Execut
 
 		// 套用個人資料（暱稱/自訂大頭貼）；沒設定就用 Google 的
 		const profile = await getProfile(env, user.email);
-		const identity = effectiveIdentity(env, user, profile);
+		const identity = await effectiveIdentity(request, env, user, profile);
 		const owner = isOwner(env, user.email);
 
 		const token = await signSession(

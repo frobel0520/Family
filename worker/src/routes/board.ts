@@ -2,6 +2,7 @@ import { requireSession } from "../session";
 import { readJsonArrayFile, updateJsonArrayFile, putBase64File } from "../github-contents";
 import { jsonResponse } from "../response";
 import { excerpt, notifyAll } from "../notify";
+import { imageProxyUrl } from "../image-url";
 
 interface BoardComment {
 	id: string;
@@ -25,16 +26,20 @@ interface BoardPost {
 	comments?: BoardComment[];
 }
 
-function rawUrl(env: Env, path: string): string {
-	return `https://raw.githubusercontent.com/${env.GITHUB_REPO}/main/${path}`;
-}
-
-/** 存的是 repo 相對路徑，回前端轉成可直接顯示的 raw URL（貼文/留言都不可改圖，不用快取破壞參數）。 */
-function withImageUrl(env: Env, post: BoardPost): BoardPost & { imageUrl: string | null; comments?: (BoardComment & { imageUrl: string | null })[] } {
+/** 存的是 repo 相對路徑，回前端轉成登入者才能用的簽章轉發網址（貼文/留言都不可改圖，不用版本參數）。 */
+async function withImageUrl(
+	request: Request,
+	env: Env,
+	post: BoardPost,
+): Promise<BoardPost & { imageUrl: string | null; comments?: (BoardComment & { imageUrl: string | null })[] }> {
 	return {
 		...post,
-		imageUrl: post.imagePath ? rawUrl(env, post.imagePath) : null,
-		comments: post.comments?.map((c) => ({ ...c, imageUrl: c.imagePath ? rawUrl(env, c.imagePath) : null })),
+		imageUrl: await imageProxyUrl(request, post.imagePath, env.JWT_SECRET),
+		comments: post.comments
+			? await Promise.all(
+					post.comments.map(async (c) => ({ ...c, imageUrl: await imageProxyUrl(request, c.imagePath, env.JWT_SECRET) })),
+				)
+			: undefined,
 	};
 }
 
@@ -45,10 +50,13 @@ function canDelete(session: { isOwner: boolean; email: string; name: string }, t
 	return target.author === session.name;
 }
 
-export async function handleListBoardPosts(_request: Request, env: Env): Promise<Response> {
+export async function handleListBoardPosts(request: Request, env: Env): Promise<Response> {
+	const auth = await requireSession(request, env);
+	if ("response" in auth) return auth.response;
+
 	const posts = await readJsonArrayFile<BoardPost>(env, "data/board.json");
 	posts.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-	return jsonResponse(posts.map((p) => withImageUrl(env, p)));
+	return jsonResponse(await Promise.all(posts.map((p) => withImageUrl(request, env, p))));
 }
 
 export async function handleCreateBoardPost(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
@@ -112,7 +120,7 @@ export async function handleCreateBoardPost(request: Request, env: Env, ctx: Exe
 		),
 	);
 
-	return jsonResponse(withImageUrl(env, newPost), 201);
+	return jsonResponse(await withImageUrl(request, env, newPost), 201);
 }
 
 /** 刪貼文：只有貼文本人或擁有者（isOwner）可以刪。 */
@@ -219,7 +227,7 @@ export async function handleCreateBoardComment(request: Request, env: Env, ctx: 
 		),
 	);
 
-	return jsonResponse({ ...newComment, imageUrl: imagePath ? rawUrl(env, imagePath) : null }, 201);
+	return jsonResponse({ ...newComment, imageUrl: await imageProxyUrl(request, imagePath, env.JWT_SECRET) }, 201);
 }
 
 /** 刪留言：只有留言本人或擁有者（isOwner）可以刪。 */
