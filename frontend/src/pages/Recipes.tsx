@@ -26,11 +26,16 @@ export function Recipes() {
 	const [submitError, setSubmitError] = useState<string | null>(null);
 
 	useEffect(() => {
-		listRecipes()
+		if (!session) {
+			setLoading(false);
+			return;
+		}
+		setLoading(true);
+		listRecipes(session.token)
 			.then(setRecipes)
 			.catch((err: Error) => setLoadError(err.message))
 			.finally(() => setLoading(false));
-	}, []);
+	}, [session?.token]);
 
 	function selectCategory(c: string | null) {
 		setActiveCategory(c);
@@ -85,71 +90,69 @@ export function Recipes() {
 				)}
 			</div>
 
-			<div className="category-filter">
-				<button type="button" className={activeCategory === null ? "active" : ""} onClick={() => selectCategory(null)}>
-					全部
-				</button>
-				{RECIPE_CATEGORIES.map((c) => (
-					<button
-						key={c}
-						type="button"
-						className={activeCategory === c ? "active" : ""}
-						onClick={() => selectCategory(c)}
-					>
-						{c}
-					</button>
-				))}
-			</div>
-
-			{session && formOpen && (
-				<form className="recipe-form" onSubmit={handleSubmit}>
-					<input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="新菜色名稱" />
-					<select value={category} onChange={(e) => setCategory(e.target.value)}>
+			{!session ? (
+				<p className="hint">請先登入才能查看食譜庫（只有家人看得到）。</p>
+			) : (
+				<>
+					<div className="category-filter">
+						<button
+							type="button"
+							className={activeCategory === null ? "active" : ""}
+							onClick={() => selectCategory(null)}
+						>
+							全部
+						</button>
 						{RECIPE_CATEGORIES.map((c) => (
-							<option key={c} value={c}>
+							<button
+								key={c}
+								type="button"
+								className={activeCategory === c ? "active" : ""}
+								onClick={() => selectCategory(c)}
+							>
 								{c}
-							</option>
+							</button>
 						))}
-					</select>
-					<label className="recipe-file-label">
-						食譜照片（可選）
-						<input
-							type="file"
-							accept="image/*"
-							onChange={(e) => setRecipeFile(e.target.files?.[0] ?? null)}
-						/>
-					</label>
-					<button type="submit" disabled={submitting || !name.trim()}>
-						{submitting ? "新增中…" : "新增菜色"}
-					</button>
-					{submitError && <p className="error">{submitError}</p>}
-				</form>
-			)}
-			{!session && <p className="hint">登入後可以新增菜色、上傳食譜照片（點卡片上的「＋食譜」）。</p>}
+					</div>
 
-			{loading && <p>載入中…</p>}
-			{loadError && <p className="error">載入失敗：{loadError}</p>}
+					{formOpen && (
+						<form className="recipe-form" onSubmit={handleSubmit}>
+							<input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="新菜色名稱" />
+							<select value={category} onChange={(e) => setCategory(e.target.value)}>
+								{RECIPE_CATEGORIES.map((c) => (
+									<option key={c} value={c}>
+										{c}
+									</option>
+								))}
+							</select>
+							<label className="recipe-file-label">
+								食譜照片（可選）
+								<input
+									type="file"
+									accept="image/*"
+									onChange={(e) => setRecipeFile(e.target.files?.[0] ?? null)}
+								/>
+							</label>
+							<button type="submit" disabled={submitting || !name.trim()}>
+								{submitting ? "新增中…" : "新增菜色"}
+							</button>
+							{submitError && <p className="error">{submitError}</p>}
+						</form>
+					)}
 
-			<div className="recipe-grid">
-				{pageRecipes.map((recipe) => (
-					<RecipeCard
-						key={recipe.id}
-						recipe={recipe}
-						onViewRecipe={setViewing}
-						onUploadRecipe={session ? handleUploadRecipe : undefined}
-					/>
-				))}
-			</div>
-			{!loading && visibleRecipes.length === 0 && <p className="hint">這個分類還沒有食譜。</p>}
+					{loading && <p>載入中…</p>}
+					{loadError && <p className="error">載入失敗：{loadError}</p>}
 
-			<Pager page={page} totalPages={totalPages} onChange={setPage} />
+					<div className="recipe-grid">
+						{pageRecipes.map((recipe) => (
+							<RecipeCard key={recipe.id} recipe={recipe} onViewRecipe={setViewing} onUploadRecipe={handleUploadRecipe} />
+						))}
+					</div>
+					{!loading && visibleRecipes.length === 0 && <p className="hint">這個分類還沒有食譜。</p>}
 
-			{viewing && (
-				<RecipeModal
-					recipe={viewing}
-					onClose={() => setViewing(null)}
-					onReplace={session ? handleUploadRecipe : undefined}
-				/>
+					<Pager page={page} totalPages={totalPages} onChange={setPage} />
+
+					{viewing && <RecipeModal recipe={viewing} onClose={() => setViewing(null)} onReplace={handleUploadRecipe} />}
+				</>
 			)}
 		</div>
 	);

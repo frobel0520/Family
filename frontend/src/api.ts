@@ -21,7 +21,7 @@ function authHeaders(token: string): HeadersInit {
 	return { Authorization: `Bearer ${token}` };
 }
 
-export const listBoardPosts = () => request<BoardPost[]>("/api/board");
+export const listBoardPosts = (token: string) => request<BoardPost[]>("/api/board", { headers: authHeaders(token) });
 
 export const createBoardPost = (token: string, content: string, imageBase64?: string) =>
 	request<BoardPost>("/api/board", {
@@ -51,7 +51,7 @@ export const deleteBoardComment = (token: string, postId: string, commentId: str
 		body: JSON.stringify({ postId, commentId }),
 	});
 
-export const listRecipes = () => request<Recipe[]>("/api/recipes");
+export const listRecipes = (token: string) => request<Recipe[]>("/api/recipes", { headers: authHeaders(token) });
 
 export const createRecipe = (token: string, data: { name: string; category: string; recipeImageBase64?: string }) =>
 	request<Recipe>("/api/recipes", {
@@ -67,7 +67,7 @@ export const uploadRecipeImage = (token: string, id: string, photoBase64: string
 		body: JSON.stringify({ id, photoBase64 }),
 	});
 
-export const listOrders = () => request<Order[]>("/api/orders");
+export const listOrders = (token: string) => request<Order[]>("/api/orders", { headers: authHeaders(token) });
 
 export const createOrder = (token: string, dishName: string) =>
 	request<Order>("/api/orders", {

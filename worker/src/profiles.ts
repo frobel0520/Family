@@ -1,4 +1,5 @@
 import { readJsonArrayFile, updateJsonArrayFile } from "./github-contents";
+import { imageProxyUrl } from "./image-url";
 
 /**
  * 個人資料（暱稱＋自訂大頭貼），存 data/profiles.json。
@@ -41,22 +42,23 @@ export async function upsertProfile(
 	return result;
 }
 
-/** 大頭貼的 raw URL（帶快取破壞參數，換圖後不會看到舊圖） */
-export function avatarRawUrl(env: Env, profile: Profile): string | null {
+/** 大頭貼的簽章轉發網址（repo 是 private，不能再直接連 raw.githubusercontent.com；見 image-url.ts）。 */
+export async function avatarProxyUrl(request: Request, env: Env, profile: Profile): Promise<string | null> {
 	if (!profile.avatarPath) return null;
-	const version = profile.avatarUpdatedAt ? `?v=${encodeURIComponent(profile.avatarUpdatedAt)}` : "";
-	return `https://raw.githubusercontent.com/${env.GITHUB_REPO}/main/${profile.avatarPath}${version}`;
+	return imageProxyUrl(request, profile.avatarPath, env.JWT_SECRET, profile.avatarUpdatedAt);
 }
 
 /** 套用 profile：算出實際顯示的名稱與大頭貼。 */
-export function effectiveIdentity(
+export async function effectiveIdentity(
+	request: Request,
 	env: Env,
 	googleUser: { name: string; avatar: string },
 	profile: Profile | null,
-): { name: string; avatar: string } {
+): Promise<{ name: string; avatar: string }> {
+	const customAvatar = profile ? await avatarProxyUrl(request, env, profile) : null;
 	return {
 		name: profile?.nickname?.trim() || googleUser.name,
-		avatar: (profile && avatarRawUrl(env, profile)) || googleUser.avatar,
+		avatar: customAvatar || googleUser.avatar,
 	};
 }
 

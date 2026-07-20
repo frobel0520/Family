@@ -1,7 +1,7 @@
 import { requireSession } from "../session";
 import { jsonResponse } from "../response";
 import { putBase64File } from "../github-contents";
-import { avatarPathForEmail, avatarRawUrl, getProfile, upsertProfile } from "../profiles";
+import { avatarPathForEmail, avatarProxyUrl, getProfile, upsertProfile } from "../profiles";
 import { signSession } from "../jwt";
 import { isOwner } from "../access";
 
@@ -17,7 +17,7 @@ export async function handleGetProfile(request: Request, env: Env): Promise<Resp
 	const profile = await getProfile(env, auth.session.email);
 	return jsonResponse({
 		nickname: profile?.nickname ?? null,
-		customAvatarUrl: profile ? avatarRawUrl(env, profile) : null,
+		customAvatarUrl: profile ? await avatarProxyUrl(request, env, profile) : null,
 		googleName: auth.session.googleName ?? auth.session.name,
 		googleAvatar: auth.session.googleAvatar ?? auth.session.avatar,
 	});
@@ -92,7 +92,7 @@ export async function handleUpdateProfile(request: Request, env: Env): Promise<R
 	}), `profile: update by ${auth.session.name}`);
 
 	const name = profile.nickname?.trim() || googleName;
-	const avatar = avatarRawUrl(env, profile) ?? googleAvatar;
+	const avatar = (await avatarProxyUrl(request, env, profile)) ?? googleAvatar;
 	const owner = isOwner(env, auth.session.email);
 
 	const token = await signSession(
@@ -105,6 +105,6 @@ export async function handleUpdateProfile(request: Request, env: Env): Promise<R
 		token,
 		user: { name, avatar, isOwner: owner, email },
 		expiresIn: SESSION_TTL_SECONDS,
-		profile: { nickname: profile.nickname ?? null, customAvatarUrl: avatarRawUrl(env, profile) },
+		profile: { nickname: profile.nickname ?? null, customAvatarUrl: await avatarProxyUrl(request, env, profile) },
 	});
 }

@@ -9,7 +9,10 @@ interface Order {
 	createdAt: string;
 }
 
-export async function handleListOrders(_request: Request, env: Env): Promise<Response> {
+export async function handleListOrders(request: Request, env: Env): Promise<Response> {
+	const auth = await requireSession(request, env);
+	if ("response" in auth) return auth.response;
+
 	const orders = await readJsonArrayFile<Order>(env, "data/orders.json");
 	orders.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 	return jsonResponse(orders);

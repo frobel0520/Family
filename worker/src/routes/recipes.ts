@@ -2,6 +2,7 @@ import { requireSession } from "../session";
 import { readJsonArrayFile, updateJsonArrayFile, putBase64File } from "../github-contents";
 import { jsonResponse } from "../response";
 import { isRecipeCategory } from "../recipe-categories";
+import { imageProxyUrl } from "../image-url";
 
 interface Recipe {
 	id: string;
@@ -20,22 +21,22 @@ function stripDataUrlPrefix(photo: string): string {
 	return match ? match[1] : photo;
 }
 
-/** Stored as repo-relative paths; resolve to fetchable raw.githubusercontent.com URLs. */
-function toRawUrl(env: Env, repoRelativePath: string): string {
-	return `https://raw.githubusercontent.com/${env.GITHUB_REPO}/main/${repoRelativePath}`;
+/** 存的是 repo 相對路徑，回前端轉成登入者才能用的簽章轉發網址。photoUrl 沒有 updatedAt（插畫不會換），
+ * recipeUrl 帶 recipeUpdatedAt 當版本，換圖後連結跟著變，才不會被瀏覽器快取卡住看到舊圖。 */
+async function withImageUrls(request: Request, env: Env, recipe: Recipe): Promise<Recipe> {
+	const [photoUrl, recipeUrl] = await Promise.all([
+		imageProxyUrl(request, recipe.photoUrl, env.JWT_SECRET),
+		imageProxyUrl(request, recipe.recipeUrl, env.JWT_SECRET, recipe.recipeUpdatedAt),
+	]);
+	return { ...recipe, photoUrl, recipeUrl };
 }
 
-function withRawUrls(env: Env, recipe: Recipe): Recipe {
-	return {
-		...recipe,
-		photoUrl: recipe.photoUrl ? toRawUrl(env, recipe.photoUrl) : null,
-		recipeUrl: recipe.recipeUrl ? toRawUrl(env, recipe.recipeUrl) : null,
-	};
-}
+export async function handleListRecipes(request: Request, env: Env): Promise<Response> {
+	const auth = await requireSession(request, env);
+	if ("response" in auth) return auth.response;
 
-export async function handleListRecipes(_request: Request, env: Env): Promise<Response> {
 	const recipes = await readJsonArrayFile<Recipe>(env, "data/recipes.json");
-	return jsonResponse(recipes.map((recipe) => withRawUrls(env, recipe)));
+	return jsonResponse(await Promise.all(recipes.map((recipe) => withImageUrls(request, env, recipe))));
 }
 
 export async function handleCreateRecipe(request: Request, env: Env): Promise<Response> {
@@ -82,7 +83,7 @@ export async function handleCreateRecipe(request: Request, env: Env): Promise<Re
 		`recipes: add "${newRecipe.name}" by ${auth.session.name}`,
 	);
 
-	return jsonResponse(withRawUrls(env, newRecipe), 201);
+	return jsonResponse(await withImageUrls(request, env, newRecipe), 201);
 }
 
 export async function handleUploadRecipeImage(request: Request, env: Env): Promise<Response> {
@@ -125,5 +126,5 @@ export async function handleUploadRecipeImage(request: Request, env: Env): Promi
 		`recipes: attach recipe image to "${target.name}" by ${auth.session.name}`,
 	);
 
-	return jsonResponse(withRawUrls(env, updated));
+	return jsonResponse(await withImageUrls(request, env, updated));
 }
