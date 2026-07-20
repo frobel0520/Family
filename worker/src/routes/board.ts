@@ -8,7 +8,8 @@ interface BoardComment {
 	author: string;
 	authorEmail?: string; // 刪除權限用 email 比對（暱稱可改，名字比對會失效）；舊資料沒有
 	avatar?: string;
-	content: string;
+	content: string; // 有附圖時可以是空字串
+	imagePath?: string | null; // 附圖的 repo 相對路徑（images/board/comments/<id>.jpg）；回傳前端時轉 raw URL
 	createdAt: string;
 }
 
@@ -24,13 +25,16 @@ interface BoardPost {
 	comments?: BoardComment[];
 }
 
-/** 存的是 repo 相對路徑，回前端轉成可直接顯示的 raw URL（貼文不可改圖，不用快取破壞參數）。 */
-function withImageUrl(env: Env, post: BoardPost): BoardPost & { imageUrl: string | null } {
+function rawUrl(env: Env, path: string): string {
+	return `https://raw.githubusercontent.com/${env.GITHUB_REPO}/main/${path}`;
+}
+
+/** 存的是 repo 相對路徑，回前端轉成可直接顯示的 raw URL（貼文/留言都不可改圖，不用快取破壞參數）。 */
+function withImageUrl(env: Env, post: BoardPost): BoardPost & { imageUrl: string | null; comments?: (BoardComment & { imageUrl: string | null })[] } {
 	return {
 		...post,
-		imageUrl: post.imagePath
-			? `https://raw.githubusercontent.com/${env.GITHUB_REPO}/main/${post.imagePath}`
-			: null,
+		imageUrl: post.imagePath ? rawUrl(env, post.imagePath) : null,
+		comments: post.comments?.map((c) => ({ ...c, imageUrl: c.imagePath ? rawUrl(env, c.imagePath) : null })),
 	};
 }
 
@@ -150,7 +154,7 @@ export async function handleCreateBoardComment(request: Request, env: Env, ctx: 
 	const auth = await requireSession(request, env);
 	if ("response" in auth) return auth.response;
 
-	let body: { postId?: string; content?: string };
+	let body: { postId?: string; content?: string; imageBase64?: string };
 	try {
 		body = await request.json();
 	} catch {
@@ -159,17 +163,29 @@ export async function handleCreateBoardComment(request: Request, env: Env, ctx: 
 	if (!body.postId || typeof body.postId !== "string") {
 		return jsonResponse({ error: "Missing 'postId'" }, 400);
 	}
-	if (!body.content || typeof body.content !== "string" || !body.content.trim()) {
-		return jsonResponse({ error: "Missing 'content'" }, 400);
+	const content = typeof body.content === "string" ? body.content.trim() : "";
+	const hasImage = typeof body.imageBase64 === "string" && body.imageBase64.length > 0;
+	if (!content && !hasImage) {
+		return jsonResponse({ error: "留言要有文字或圖片" }, 400);
 	}
 	const postId = body.postId;
+	const commentId = crypto.randomUUID();
+
+	// 先傳圖，圖傳失敗就整則留言不送出
+	let imagePath: string | null = null;
+	if (hasImage) {
+		imagePath = `images/board/comments/${commentId}.jpg`;
+		const base64 = (body.imageBase64 as string).replace(/^data:.*;base64,/s, "");
+		await putBase64File(env, imagePath, base64, `board: comment image by ${auth.session.name}`);
+	}
 
 	const newComment: BoardComment = {
-		id: crypto.randomUUID(),
+		id: commentId,
 		author: auth.session.name,
 		authorEmail: auth.session.email.toLowerCase(),
 		avatar: auth.session.avatar,
-		content: body.content.trim(),
+		content,
+		imagePath,
 		createdAt: new Date().toISOString(),
 	};
 
@@ -194,7 +210,7 @@ export async function handleCreateBoardComment(request: Request, env: Env, ctx: 
 			env,
 			{
 				title: `💬 ${auth.session.name} 在佈告欄留言`,
-				body: excerpt(newComment.content),
+				body: content ? excerpt(content) : "📷 傳了一張照片",
 				url: "/Family/#/board",
 				tag: "board",
 				icon: auth.session.avatar,
@@ -203,7 +219,7 @@ export async function handleCreateBoardComment(request: Request, env: Env, ctx: 
 		),
 	);
 
-	return jsonResponse(newComment, 201);
+	return jsonResponse({ ...newComment, imageUrl: imagePath ? rawUrl(env, imagePath) : null }, 201);
 }
 
 /** 刪留言：只有留言本人或擁有者（isOwner）可以刪。 */

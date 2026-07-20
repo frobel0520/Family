@@ -37,11 +37,11 @@ export const deleteBoardPost = (token: string, id: string) =>
 		body: JSON.stringify({ id }),
 	});
 
-export const createBoardComment = (token: string, postId: string, content: string) =>
+export const createBoardComment = (token: string, postId: string, content: string, imageBase64?: string) =>
 	request<BoardComment>("/api/board/comment", {
 		method: "POST",
 		headers: authHeaders(token),
-		body: JSON.stringify({ postId, content }),
+		body: JSON.stringify({ postId, content, ...(imageBase64 ? { imageBase64 } : {}) }),
 	});
 
 export const deleteBoardComment = (token: string, postId: string, commentId: string) =>

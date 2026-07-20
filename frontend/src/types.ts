@@ -3,7 +3,8 @@ export interface BoardComment {
 	author: string;
 	authorEmail?: string; // 刪除權限比對用；舊資料沒有
 	avatar?: string;
-	content: string;
+	content: string; // 有附圖時可能是空字串
+	imageUrl?: string | null; // 附圖（Worker 已轉成 raw URL）
 	createdAt: string;
 }
 

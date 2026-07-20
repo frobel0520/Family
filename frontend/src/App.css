@@ -374,27 +374,73 @@
 	overflow-wrap: anywhere;
 }
 
+.board-comment-image {
+	display: block;
+	max-width: min(100%, 12rem);
+	max-height: 10rem;
+	border-radius: 8px;
+	margin-top: 0.35rem;
+	cursor: zoom-in;
+	border: 1px solid var(--border);
+	object-fit: cover;
+}
+
 .board-comment .delete-x {
 	position: absolute;
 	top: 0;
 	right: 0;
 }
 
+/* 留言太多時收合，只露出最新幾則；跟展開共用同一顆按鈕樣式 */
+.board-comments-toggle {
+	align-self: flex-start;
+	background: none;
+	border: none;
+	color: var(--accent);
+	font-size: 0.85rem;
+	font-weight: 600;
+	padding: 0.1rem 0;
+	cursor: pointer;
+}
+
+.board-comments-toggle:hover {
+	text-decoration: underline;
+}
+
 .board-comment-form {
+	display: flex;
+	flex-direction: column;
+	gap: 0.4rem;
+}
+
+.board-comment-form-row {
 	display: flex;
 	gap: 0.5rem;
 }
 
-.board-comment-form input {
+.board-comment-form input[type="text"] {
 	flex: 1;
 	min-width: 0;
 	font-size: 0.92rem;
 }
 
-.board-comment-form button {
+.board-comment-form-row button {
 	font-size: 0.85rem;
 	padding: 0.35rem 0.85rem;
 	flex-shrink: 0;
+}
+
+.board-comment-image-btn {
+	padding: 0.35rem 0.6rem;
+}
+
+.board-comment-image-preview {
+	align-self: flex-start;
+}
+
+.board-comment-image-preview img {
+	max-width: 6rem;
+	max-height: 6rem;
 }
 
 /* ---------- Install (PWA) page ---------- */
