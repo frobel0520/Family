@@ -23,6 +23,7 @@
 | 留言附圖 + 留言收合 | ✅ 已完成並部署（2026-07-19）：留言比照貼文可附一張圖（同樣可以只有圖沒文字），存 `images/board/comments/<commentId>.jpg`，`BoardComment` 多 `imagePath`/`imageUrl`。留言區收合仿 Facebook：`Board.tsx` 的 `COLLAPSE_THRESHOLD=3`／`COLLAPSED_VISIBLE_COUNT=2`，超過 3 則只露出最新 2 則＋「查看全部 N 則留言」，點了才整串展開並可「收合留言」；剛送出留言後該貼文會自動展開（不然使用者會以為自己的留言消失了）。點留言圖也能放大（跟貼文圖共用同一個燈箱/viewingImage state） |
 | 設定頁（`/settings`，原 `/install` 改名並保留舊路由） | ✅ 已完成並部署（2026-07-19）：三區塊＝👤 個人資料（暱稱＋大頭貼）、🔔 通知開關、📲 安裝教學。暱稱/自訂大頭貼存 `data/profiles.json`（key=email 小寫），大頭貼傳 `images/avatars/<sha256(email) 前 16 hex>.jpg`（前端 canvas 裁 256x256 JPEG 再上傳）。**登入時套用**（`routes/auth.ts` 讀 profile → JWT 的 name/avatar 就是生效值，發文留言點菜自動用暱稱）；JWT 另存 `googleName`/`googleAvatar` 供「清除暱稱／改回 Google 大頭貼」還原。`POST /api/profile` 會**重簽 session 回傳**，前端 `applySessionResponse` 即時套用不用重登。貼文/留言新增 `authorEmail` 欄位，刪除權限改用 email 比對（暱稱改名不影響），舊資料 fallback 名字比對 |
 | 推播通知（Web Push） | ✅ 已完成並部署（2026-07-19）：純 WebCrypto 實作 RFC 8291 aes128gcm 加密 + RFC 8292 VAPID（`worker/src/web-push.ts`，**有 vitest 測試對照 RFC 8291 附錄 A 官方向量**，不用 Node 專用的 npm web-push）。訂閱存 Cloudflare KV（binding `PUSH_SUBS`，id `4b6a850c...`，一台裝置一筆，key = `sub:<b64url endpoint>`，發送遇 404/410 自動清除失效訂閱）。VAPID 私鑰 = secret `VAPID_PRIVATE_JWK`，公鑰在 `wrangler.jsonc` vars + `frontend/src/push.ts` 各一份（**兩邊要一致**）。觸發點（都 `ctx.waitUntil` 背景送、排除觸發者本人）：新貼文/新留言→全員、點菜→全員、新登入申請→僅擁有者。前端開關在設定頁「🔔 通知」區塊。**通知外觀**（2026-07-19 補）：payload 帶 `tag`（board/orders/admin，同 tag 在 Android 摺疊成一則、SW 用 `getNotifications({tag})` 疊加「還有 N 則」計數）＋ `icon`（觸發者大頭貼當縮圖）；`public/badge.png` 是透明底白色小屋剪影（Android 狀態列 badge 必須單色透明底，彩色圖會變一片白）。**iOS 全部不適用**：通知圖示固定是 App 圖示、不能自訂縮圖，堆疊由系統自動做 |
+| **隱私：所有內容只有登入的家人能看** | ✅ 已完成並部署（2026-07-20）。背景：登入機制原本只擋「打 Worker API 的請求」，但 repo 是 public，圖片走 `raw.githubusercontent.com`、`GET /api/board`\|`recipes`\|`orders` 也不用登入，等於任何人知道網址就能完全繞過登入看光所有資料。修法分兩層，詳見下方「✅ 已完成：內容存取保護」完整章節 |
 
 ---
 
@@ -45,9 +46,50 @@
 
 ---
 
+## ✅ 已完成：內容存取保護（2026-07-20）
+
+**背景**：使用者問「怎麼確保所有內容只有家人才能看到」才發現的漏洞——登入機制只保護「打 Worker API 的請求」，但當時 `frobel0520/Family` 是 **public** repo，而且：
+1. 圖片（貼文圖、食譜圖、大頭貼）都是直接連 `raw.githubusercontent.com`，不經過 Worker，完全繞過登入。
+2. `GET /api/board`、`GET /api/recipes`、`GET /api/orders` 當初設計成公開不用登入（見下方舊的「前端怎麼讀資料」章節，已過時）。
+
+只要知道 repo 網址或圖片直連網址，不用登入就能看光所有貼文/照片/食譜/`access.json` 裡的 email。修法分兩層：
+
+### 1. 圖片改走簽章轉發，不再直連 raw.githubusercontent.com
+
+新增 `worker/src/image-url.ts`：Worker 用 `JWT_SECRET` 對 repo 相對路徑做 HMAC 簽章，組出 `${origin}/api/image?path=...&sig=...`（大頭貼/食譜圖還會帶 `&v=<更新時間>` 當版本，換圖後簽章跟著變，不會被快取卡住看舊圖）。**簽章刻意不設過期時間**（不像 session token 24h 就失效）——這樣貼文/留言存的大頭貼快照網址才能一直有效，不會因為原 po 主的 session 過期就變成一張壞圖。安全性靠的是「這個連結只會出現在登入後才拿得到的 API 回應裡」，跟一般雲端相簿的分享連結是同一種模式（不是核對使用者身分，是核對連結本身有沒有被正確簽過）。
+
+`worker/src/routes/image.ts`（`GET /api/image`）驗證簽章＋路徑白名單（只允許 `images/recipes/`、`images/board/`、`images/avatars/` 三個資料夾，擋路徑逃逸），通過才用 `github-contents.ts` 新增的 `fetchRawFile`（`Accept: application/vnd.github.raw`，binary-safe，不像 `getFile` 那樣走 base64 解文字，圖片會爛掉）把圖轉發出去，`Cache-Control: public, max-age=86400, immutable`（簽章連結本身就是憑證，不需要每次重驗，可以放心快取）。
+
+套用的地方：`board.ts`（貼文/留言圖）、`recipes.ts`（`photoUrl`/`recipeUrl`）、`profiles.ts` 的 `avatarProxyUrl`（大頭貼，`effectiveIdentity` 現在是 async，登入時 `routes/auth.ts` 要 `await`）。**有 vitest 測試**（`worker/test/image-url.spec.ts`）覆蓋簽章正確性、路徑/密鑰/版本被改動都要失敗。
+
+### 2. 讀取 API 全部要求登入
+
+`GET /api/board`、`/api/recipes`、`/api/orders` 都加上 `requireSession`（之前是刻意公開，現在改掉了）。前端 `Board.tsx`／`Recipes.tsx`／`Orders.tsx` 改成：沒登入就顯示「請先登入才能查看…」，不會嘗試打 API；`api.ts` 的 `listBoardPosts`/`listRecipes`/`listOrders` 都改成要傳 `token`。
+
+**部署時踩到的坑**：Worker 跟前端要一起上線，不能只部署 Worker——第一次只部署了 Worker（改成要求登入），前端還是舊版（沒帶 Authorization header），結果家人打開 App 全部看到「Missing Authorization header」。**以後任何「後端要求變嚴、前端要配合」的改動，一定要前後端一起 commit+push+deploy，不要分開驗證。**
+
+### 3. 資料本體搬到獨立的 private repo
+
+只把圖片轉發跟 API 上鎖還不夠——**public repo 本身**（`github.com/frobel0520/Family` 網頁、`git clone`）任何人都能直接看到 `data/*.json`、`images/`，這是 GitHub 平台本身的行為，Worker 完全管不到。原本想法是把整個 repo 設成 private，但卡到一個關页限制：
+
+> **GitHub Pages 在免費帳號的 private repo 上不能用**（只有 Pro/Team 方案支援）。使用者的帳號是免費方案，整個 repo 設 private 會直接讓 GitHub Pages 網站 404。
+
+改成這樣分工：
+- 新建 **`frobel0520/Family-data`（private）**，只放 `data/`、`images/`，Worker 的 `GITHUB_REPO` 改指向這裡；`GITHUB_BOT_PAT` 也換成一把**新的 fine-grained PAT，只有 `Family-data` 的 Contents read/write 權限**（舊 PAT 是 `Family` repo 專用，對新 repo沒有存取權，這步是使用者自己在 GitHub 網站產生新 token，用 `wrangler secret put GITHUB_BOT_PAT` 更新，token 沒有出現在對話紀錄裡）。
+- `frobel0520/Family`（public）**只留前端程式碼**，沒有任何家人資料，繼續用 GitHub Pages 免費部署，家人完全無感——不用重裝 App、不用重新登入、網址沒變。
+
+**搬遷過程踩到的坑（資料落差）**：搬資料的當下用 `cp -r` 拍了一份快照丟到新 repo，但**在切換 Worker 指向新 repo 之前**，家人還在用（指向舊 repo 的）App 繼續發文留言，那段空窗期新增的 1 篇貼文＋3 則留言＋2 張圖片只寫進了舊 repo，新 repo 沒有。症狀是使用者回報「部分貼文不見了」。修法：把兩邊 `data/board.json` 用 id 逐筆比對（`orders.json`/`recipes.json`/`profiles.json`/`access.json` 這幾個當時確認完全沒有落差，只有 `board.json` 有，因為那段時間家人剛好在發文），補進缺的貼文/留言跟兩張圖片。**這個坑的教訓**：搬遷「資料庫」跟「切換讀寫指向」如果不是同一時刻做，中間的空窗期就會有寫入丟失風險；下次要搬類似的東西，該讓舊系統在切換瞬間停寫，或搬完立刻切換不要拖。
+
+搬完之後把 `data/`、`images/` 從舊 public repo 的**目前檔案**裡刪掉（`git rm` + commit + push），Worker 也確認 `raw.githubusercontent.com/frobel0520/Family/main/data/board.json` 打不到了（404）。
+
+**已知殘留、風險低**：舊 public repo 在這次清除**之前**的 git commit 歷史裡，還留著家人資料的舊版本（GitHub 網頁上目前檔案列表已經看不到，但翻歷史 commit 還能挖到）。真的要斷根需要把這個 repo整個刪掉重建（不可逆操作，需要使用者另外確認才會做，見下方「下一步」）。這個 repo 從來沒被分享過連結、沒有被搜尋引擎索引，現況風險非常低。
+
+---
+
 ## 帳號 / 服務資訊
 
-- **GitHub repo**：https://github.com/frobel0520/Family（public）
+- **GitHub repo（程式碼，public）**：https://github.com/frobel0520/Family
+- **GitHub repo（資料/圖片，private，2026-07-20 起）**：https://github.com/frobel0520/Family-data
 - **GitHub Pages 網址**：https://frobel0520.github.io/Family/
 - **Cloudflare 帳號**：<redacted>（用 Google 登入）
 - **Worker 網址**：https://family-app-worker.frobel0520.workers.dev
@@ -57,12 +99,15 @@
 
 **Worker secrets**（`worker/` 目錄下用 `wrangler secret put <NAME>` 設定，內容不在任何檔案裡，只存在 Cloudflare）：
 - `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` ✅ 已設定，登入已實測成功
-- `GITHUB_BOT_PAT`（Fine-grained PAT，僅限這個 repo，僅 Contents 讀寫權限）✅
-- `JWT_SECRET`（隨機字串，簽 session JWT 用）✅
+- `GITHUB_BOT_PAT`（Fine-grained PAT）✅ **2026-07-20 換過一次**：現在是只有 `frobel0520/Family-data`（private）Contents read/write 權限的新 token，舊的（`Family` repo 專用）已作廢
+- `JWT_SECRET`（隨機字串，簽 session JWT 用；**現在也拿來當圖片轉發連結的 HMAC 簽章密鑰**，見上方「內容存取保護」）✅
 - `OWNER_EMAIL`（你自己的 Google email，永遠放行 + 唯一審核者）✅ 已設定
 - `VAPID_PRIVATE_JWK`（Web Push VAPID 私鑰，JWK JSON 字串）✅ 已設定（2026-07-19；公鑰在 wrangler.jsonc vars，金鑰對用 Node webcrypto 產生）
 - 舊的 `GITHUB_CLIENT_ID`/`GITHUB_CLIENT_SECRET`（GitHub OAuth 遷移到 Google 後）已刪除
 - `ALLOWED_EMAILS`（白名單版本，被審核機制取代）**從沒真正部署上線過**，如果你當時有跑過 `wrangler secret put ALLOWED_EMAILS`，記得順手 `wrangler secret delete` 清掉
+
+**Worker vars**（`worker/wrangler.jsonc`，明文、會 commit，非機密）：
+- `GITHUB_REPO`：`frobel0520/Family-data`（2026-07-20 從 `frobel0520/Family` 改過來，見上方章節）
 
 **GitHub Actions repo variables**（Settings → Secrets and variables → Actions → Variables，用來在 build 時注入前端）：
 - `VITE_GOOGLE_CLIENT_ID` ✅ 已設定
@@ -80,12 +125,18 @@
 6. **`npm create cloudflare` 產生的專案預設沒有 `@cloudflare/workers-types`**，要自己 `npm install -D @cloudflare/workers-types` 並在 `tsconfig.json` 加 `"types": ["@cloudflare/workers-types"]`。
 7. **CORS 的 `ALLOWED_ORIGIN` 不要加路徑**，瀏覽器送出的 `Origin` header 只有 scheme+host，不包含 `/Family/`。這也代表**本機 `localhost:5173` 打正式 Worker 一定會被 CORS 擋掉**（`Failed to fetch`），是預期行為，不是 bug。
 8. **`wrangler secret put` 用 PowerShell 管線（`|`）餵值時可能被自動加上尾端換行**，導致存進去的 secret 跟預期值對不起來（症狀：token exchange 回 404，因為 client_id 尾巴多了看不見的字元）。改用 Bash 的 `printf '%s' "value" | wrangler secret put NAME`（不會加換行）比較保險。
+9. **GitHub Pages 在免費帳號的 private repo 上不能用**（只有 Pro/Team 方案支援）。這代表「把整個 repo 設 private 來保護資料」這條路，如果前端還在用 GitHub Pages 免費部署，走不通——要保護資料就得把資料搬到另一個 private repo，程式碼 repo 繼續 public。
+10. **後端變嚴（例如 API 開始要求登入）跟前端配合的改動，一定要一起 commit+push+deploy**，不要分開驗證再各自部署——中間任何一段時間新舊不匹配，家人打開 App 就會看到一片錯誤（親身經歷：`Missing Authorization header`）。
+11. **搬遷「資料儲存位置」跟「切換讀寫指向」如果有時間差，中間的空窗期會漏資料**——舊系統還在被寫入的時候，新系統只是拍了張快照，之後新增的東西不會自動同步過去。要搬就盡量讓快照時間跟切換時間貼緊，或者搬完立刻比對兩邊差異補齊（這次是用 id 逐筆比對 `board.json` 補回 1 篇貼文＋3 則留言＋2 張圖片）。
+12. **`gh api` 用 `-f content=<base64>` 傳大檔案（例如整張圖片轉 base64）會超過 Windows 的 argv 長度限制**（`Argument list too long`）。改成先把 JSON payload 寫成暫存檔，再用 `gh api --input <file>` 讀檔案內容，不會受命令列長度限制。
 
 ---
 
-## 已解決：前端怎麼「讀」資料
+## 前端怎麼「讀」資料（2026-07-20 更新：現在全部都要登入）
 
-Worker 有 `GET /api/board`、`GET /api/recipes`、`GET /api/orders`（公開、不用登入），內部一樣透過 GitHub Contents API 讀，不是讓前端直接打 `raw.githubusercontent.com`，避免 CDN 快取延遲（剛寫入的資料要等幾分鐘才會反映在 raw 檔案上）。食譜照片本身（圖片二進位檔）維持用 `raw.githubusercontent.com` 網址，圖片上傳後不會再變動，快取延遲不是問題。`photoUrl` 可能是 `null`（尚未拍照），前端用 `RecipePhoto` 元件顯示 🍽️ 預設圖示。
+`GET /api/board`、`GET /api/recipes`、`GET /api/orders` 現在都要求登入（`requireSession`）——**這跟最早的設計不一樣，最早是刻意公開不用登入**，後來發現這樣等於讓沒登入的人也能看到所有內容，2026-07-20 補上登入檢查（詳見上方「✅ 已完成：內容存取保護」章節）。內部一樣透過 GitHub Contents API 讀，不是讓前端直接打 `raw.githubusercontent.com`，除了避免 CDN 快取延遲，現在資料所在的 `Family-data` 是 private repo，`raw.githubusercontent.com` 本來就打不通了。
+
+圖片（食譜照片、貼文/留言附圖、大頭貼）也不再是 `raw.githubusercontent.com` 網址，而是 Worker 簽章過的轉發連結（`/api/image?path=...&sig=...`，見「內容存取保護」章節的 `image-url.ts`）。`photoUrl` 可能是 `null`（尚未拍照），前端用 `RecipePhoto` 元件顯示 🍽️ 預設圖示。
 
 ---
 
@@ -102,6 +153,7 @@ Openverse 輪的技術備忘：匿名 API 限 20 次/分、200 次/天，搜尋�
 ## 下一步（依優先順序）
 
 0. **請家人實機測試 PWA**：iPhone 用 Safari 開網站 →「加入主畫面」→ 從主畫面開啟 → `/install` 頁開通知（iOS 16.4+ 才支援；**必須從主畫面開啟的 App 裡按，Safari 分頁裡按沒用**）。Android 用 Chrome 直接安裝即可
+0.5. **（選做，不可逆）舊 public repo 歷史紀錄清除**：`frobel0520/Family` 在 2026-07-20 之前的 commit 歷史裡還留著家人資料舊版本（目前檔案列表已經看不到，但翻歷史還能挖到）。目前風險很低（repo 沒被分享過、沒被索引），先不處理；真要斷根需要把這個 repo **整個刪掉重建**，這件事需要使用者另外明確同意才會做（GitHub Pages 部署設定、Google OAuth redirect URI 等都要重新確認一次不受影響）
 1. 佈告欄「編輯貼文」——刪除已完成（2026-07），編輯還沒做；`board.json` 的 `updatedAt` 欄位已預留但沒用到
 2. ~~補照片~~ 已完成：**全庫 160 道皆為統一風格自製插畫**（2026-07 全數汰換完畢）；家人實拍上傳會自動覆蓋插畫，歡迎隨時替換
 3. 校對 160 道菜裡幾個手寫字跡辨識不確定的品項（湯品 17/20/21/23、麵食 11、飯類 9/18 括號註記）——細節在 `data/recipes.json` 的 commit message 裡有提到
@@ -112,3 +164,6 @@ Openverse 輪的技術備忘：匿名 API 限 20 次/分、200 次/天，搜尋�
 - 多人同時寫入衝突：v1 是「後寫入覆蓋」（沒有樂觀鎖），照規劃書就是預期行為
 - 「拒絕」申請只是從待審核移除，沒有黑名單機制，被拒絕的人還能再申請一次
 - 審核不是即時推播通知，擁有者要自己打開 App 檢查「審核」分頁才會看到新申請
+- 圖片轉發連結（`/api/image?path=...&sig=...`）簽章沒有過期時間，只要連結流出去（例如截圖分享、被瀏覽器同步到別的裝置）就能一直看那張圖，不會因為時間久了自動失效——這是刻意的設計取捨（見「內容存取保護」章節），跟大部分雲端相簿的「知道連結就能看」是同一種模式，家庭規模可接受
+- 刪貼文/留言不會連動刪除 repo 裡的圖片檔（孤兒圖案），這些孤兒圖現在因為 `Family-data` 是 private repo，一樣不會被外部看到，只是白佔一點儲存空間
+- 舊 public repo（`frobel0520/Family`）2026-07-20 之前的 commit 歷史裡仍留有家人資料舊版本，見上方「下一步」第 0.5 項
