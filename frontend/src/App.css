@@ -277,6 +277,54 @@
 	font-size: 0.95rem;
 }
 
+/* ---------- Board images ---------- */
+
+.board-form-actions {
+	display: flex;
+	justify-content: space-between;
+	gap: 0.6rem;
+}
+
+.board-image-preview {
+	position: relative;
+	align-self: flex-start;
+}
+
+.board-image-preview img {
+	max-width: 10rem;
+	max-height: 10rem;
+	border-radius: 8px;
+	display: block;
+	border: 1px solid var(--border);
+}
+
+.board-image-preview .delete-x {
+	position: absolute;
+	top: 0.2rem;
+	right: 0.2rem;
+	background: rgba(0, 0, 0, 0.55);
+	color: #fff;
+	border-radius: 50%;
+}
+
+.board-post-image {
+	display: block;
+	max-width: min(100%, 22rem);
+	max-height: 20rem;
+	border-radius: 8px;
+	margin-top: 0.5rem;
+	cursor: zoom-in;
+	border: 1px solid var(--border);
+	object-fit: cover;
+}
+
+.board-image-full {
+	max-width: 92vw;
+	max-height: 90vh;
+	border-radius: 8px;
+	display: block;
+}
+
 /* ---------- Board comments ---------- */
 
 .board-comments {
