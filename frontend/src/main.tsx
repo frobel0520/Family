@@ -14,6 +14,20 @@ if ('serviceWorker' in navigator) {
   })
 }
 
+// App 圖示紅點（Badging API，只有 Android 支援，iOS Safari 沒實作，呼叫失敗就算了）：
+// 開啟或切回這個 App 就當作「看過了」，清掉紅點。sw.js 收到推播時會設回去。
+function clearAppBadge() {
+  try {
+    ;(navigator as Navigator & { clearAppBadge?: () => Promise<void> }).clearAppBadge?.()
+  } catch {
+    // 不支援或呼叫失敗都安靜忽略
+  }
+}
+clearAppBadge()
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') clearAppBadge()
+})
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     {/* GitHub Pages has no server-side routing, so a deep link like /auth/callback

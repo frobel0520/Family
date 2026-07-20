@@ -2,6 +2,26 @@
  * v1：不做離線快取（避免快取舊版前端的坑），單純讓 PWA 可安裝，
  * 並預留推播事件處理（第二階段接 Web Push 時會用到）。 */
 
+// App 圖示上的紅點（Badging API）。只支援 Android（Chrome/Edge 已安裝的 PWA），
+// iOS Safari 完全沒實作這個標準（跟推播通知不一樣，這個 WebKit 沒做），呼叫在 iOS
+// 上就是靜靜失敗，不影響其他功能。不帶數字（`setAppBadge()` 不帶參數）——單純一個
+// 紅點，不是未讀數量，語意就是「有新東西沒看過」。
+function setBadge() {
+	try {
+		self.navigator.setAppBadge?.();
+	} catch {
+		// 不支援或呼叫失敗都安靜忽略
+	}
+}
+
+function clearBadge() {
+	try {
+		self.navigator.clearAppBadge?.();
+	} catch {
+		// 同上
+	}
+}
+
 self.addEventListener("install", () => {
 	self.skipWaiting();
 });
@@ -35,14 +55,16 @@ self.addEventListener("push", (event) => {
 				badge: "/Family/badge.png",
 				data: { url: payload.url ?? "/Family/", count },
 			});
+			setBadge();
 		})(),
 	);
 });
 
-// 點通知：聚焦既有視窗或開新視窗
+// 點通知：聚焦既有視窗或開新視窗；點了就算「看過」，把紅點清掉
 self.addEventListener("notificationclick", (event) => {
 	event.notification.close();
 	const url = event.notification.data?.url ?? "/Family/";
+	clearBadge();
 	event.waitUntil(
 		self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
 			for (const client of clients) {
