@@ -23,11 +23,11 @@ function authHeaders(token: string): HeadersInit {
 
 export const listBoardPosts = () => request<BoardPost[]>("/api/board");
 
-export const createBoardPost = (token: string, content: string) =>
+export const createBoardPost = (token: string, content: string, imageBase64?: string) =>
 	request<BoardPost>("/api/board", {
 		method: "POST",
 		headers: authHeaders(token),
-		body: JSON.stringify({ content }),
+		body: JSON.stringify({ content, ...(imageBase64 ? { imageBase64 } : {}) }),
 	});
 
 export const deleteBoardPost = (token: string, id: string) =>

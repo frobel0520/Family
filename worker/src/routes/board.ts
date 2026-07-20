@@ -1,5 +1,5 @@
 import { requireSession } from "../session";
-import { readJsonArrayFile, updateJsonArrayFile } from "../github-contents";
+import { readJsonArrayFile, updateJsonArrayFile, putBase64File } from "../github-contents";
 import { jsonResponse } from "../response";
 import { excerpt, notifyAll } from "../notify";
 
@@ -17,10 +17,21 @@ interface BoardPost {
 	author: string;
 	authorEmail?: string; // 同上；舊資料沒有這個欄位，fallback 比對名字
 	avatar?: string; // 舊資料沒有這個欄位，前端會用名字首字當替代頭像
-	content: string;
+	content: string; // 有附圖時可以是空字串
+	imagePath?: string | null; // 附圖的 repo 相對路徑（images/board/<id>.jpg）；回傳前端時轉 raw URL
 	createdAt: string;
 	updatedAt: string;
 	comments?: BoardComment[];
+}
+
+/** 存的是 repo 相對路徑，回前端轉成可直接顯示的 raw URL（貼文不可改圖，不用快取破壞參數）。 */
+function withImageUrl(env: Env, post: BoardPost): BoardPost & { imageUrl: string | null } {
+	return {
+		...post,
+		imageUrl: post.imagePath
+			? `https://raw.githubusercontent.com/${env.GITHUB_REPO}/main/${post.imagePath}`
+			: null,
+	};
 }
 
 /** 刪除權限：擁有者一律可以；有 authorEmail 用 email 比對，舊資料退回名字比對。 */
@@ -33,31 +44,44 @@ function canDelete(session: { isOwner: boolean; email: string; name: string }, t
 export async function handleListBoardPosts(_request: Request, env: Env): Promise<Response> {
 	const posts = await readJsonArrayFile<BoardPost>(env, "data/board.json");
 	posts.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-	return jsonResponse(posts);
+	return jsonResponse(posts.map((p) => withImageUrl(env, p)));
 }
 
 export async function handleCreateBoardPost(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
 	const auth = await requireSession(request, env);
 	if ("response" in auth) return auth.response;
 
-	let body: { content?: string };
+	let body: { content?: string; imageBase64?: string };
 	try {
 		body = await request.json();
 	} catch {
 		return jsonResponse({ error: "Invalid JSON body" }, 400);
 	}
 
-	if (!body.content || typeof body.content !== "string" || !body.content.trim()) {
-		return jsonResponse({ error: "Missing 'content'" }, 400);
+	const content = typeof body.content === "string" ? body.content.trim() : "";
+	const hasImage = typeof body.imageBase64 === "string" && body.imageBase64.length > 0;
+	if (!content && !hasImage) {
+		return jsonResponse({ error: "貼文要有文字或圖片" }, 400);
+	}
+
+	const postId = crypto.randomUUID();
+
+	// 先傳圖，圖傳失敗就整篇不發（不會出現「有貼文沒圖」的半套狀態）
+	let imagePath: string | null = null;
+	if (hasImage) {
+		imagePath = `images/board/${postId}.jpg`;
+		const base64 = (body.imageBase64 as string).replace(/^data:.*;base64,/s, "");
+		await putBase64File(env, imagePath, base64, `board: image for post by ${auth.session.name}`);
 	}
 
 	const now = new Date().toISOString();
 	const newPost: BoardPost = {
-		id: crypto.randomUUID(),
+		id: postId,
 		author: auth.session.name,
 		authorEmail: auth.session.email.toLowerCase(),
 		avatar: auth.session.avatar,
-		content: body.content.trim(),
+		content,
+		imagePath,
 		createdAt: now,
 		updatedAt: now,
 		comments: [],
@@ -75,7 +99,7 @@ export async function handleCreateBoardPost(request: Request, env: Env, ctx: Exe
 			env,
 			{
 				title: `📌 ${auth.session.name} 發了新貼文`,
-				body: excerpt(newPost.content),
+				body: content ? excerpt(content) : "📷 傳了一張照片",
 				url: "/Family/#/board",
 				tag: "board",
 				icon: auth.session.avatar,
@@ -84,7 +108,7 @@ export async function handleCreateBoardPost(request: Request, env: Env, ctx: Exe
 		),
 	);
 
-	return jsonResponse(newPost, 201);
+	return jsonResponse(withImageUrl(env, newPost), 201);
 }
 
 /** 刪貼文：只有貼文本人或擁有者（isOwner）可以刪。 */

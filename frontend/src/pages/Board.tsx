@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { fileToResizedJpegDataUrl } from "../fileToDataUrl";
 import { useAuth } from "../auth/AuthContext";
 import {
 	createBoardComment,
@@ -35,6 +36,9 @@ export function Board() {
 	const [commentingId, setCommentingId] = useState<string | null>(null);
 	const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null);
 	const [deleting, setDeleting] = useState(false);
+	const [attachedImage, setAttachedImage] = useState<string | null>(null); // data URL
+	const [viewingImage, setViewingImage] = useState<string | null>(null); // 點圖放大
+	const fileInput = useRef<HTMLInputElement>(null);
 
 	useEffect(() => {
 		listBoardPosts()
@@ -53,19 +57,32 @@ export function Board() {
 
 	async function handleSubmit(e: React.FormEvent) {
 		e.preventDefault();
-		if (!session || !content.trim()) return;
+		if (!session || (!content.trim() && !attachedImage)) return;
 
 		setSubmitting(true);
 		setSubmitError(null);
 		try {
-			const newPost = await createBoardPost(session.token, content.trim());
+			const newPost = await createBoardPost(session.token, content.trim(), attachedImage ?? undefined);
 			setPosts((prev) => [newPost, ...prev]);
 			setContent("");
+			setAttachedImage(null);
 			setPage(1); // new post sorts first — jump back to page 1 so it's visible
 		} catch (err) {
 			setSubmitError((err as Error).message);
 		} finally {
 			setSubmitting(false);
+		}
+	}
+
+	async function onPickImage(e: React.ChangeEvent<HTMLInputElement>) {
+		const file = e.target.files?.[0];
+		e.target.value = ""; // 同一張圖可以重選
+		if (!file) return;
+		setSubmitError(null);
+		try {
+			setAttachedImage(await fileToResizedJpegDataUrl(file, 1280));
+		} catch (err) {
+			setSubmitError((err as Error).message);
 		}
 	}
 
@@ -128,9 +145,23 @@ export function Board() {
 						placeholder="想說點什麼..."
 						rows={3}
 					/>
-					<button type="submit" disabled={submitting || !content.trim()}>
-						{submitting ? "送出中…" : "發布"}
-					</button>
+					{attachedImage && (
+						<div className="board-image-preview">
+							<img src={attachedImage} alt="附圖預覽" />
+							<button type="button" className="delete-x" aria-label="移除附圖" onClick={() => setAttachedImage(null)}>
+								✕
+							</button>
+						</div>
+					)}
+					<div className="board-form-actions">
+						<button type="button" disabled={submitting} onClick={() => fileInput.current?.click()}>
+							📷 {attachedImage ? "換一張圖" : "附上圖片"}
+						</button>
+						<input ref={fileInput} type="file" accept="image/*" style={{ display: "none" }} onChange={onPickImage} />
+						<button type="submit" disabled={submitting || (!content.trim() && !attachedImage)}>
+							{submitting ? "送出中…" : "發布"}
+						</button>
+					</div>
 					{submitError && <p className="error">{submitError}</p>}
 				</form>
 			) : (
@@ -150,7 +181,16 @@ export function Board() {
 								<span className="board-post-time">{formatTime(post.createdAt)}</span>
 							</div>
 						</div>
-						<p>{post.content}</p>
+						{post.content && <p>{post.content}</p>}
+						{post.imageUrl && (
+							<img
+								className="board-post-image"
+								src={post.imageUrl}
+								alt="貼文附圖"
+								loading="lazy"
+								onClick={() => setViewingImage(post.imageUrl!)}
+							/>
+						)}
 						{canDelete(post) && (
 							<button
 								type="button"
@@ -216,6 +256,12 @@ export function Board() {
 			{!loading && posts.length === 0 && <p className="hint">還沒有貼文。</p>}
 
 			<Pager page={page} totalPages={totalPages} onChange={setPage} />
+
+			{viewingImage && (
+				<div className="recipe-modal-backdrop" onClick={() => setViewingImage(null)}>
+					<img className="board-image-full" src={viewingImage} alt="貼文附圖" onClick={(e) => e.stopPropagation()} />
+				</div>
+			)}
 
 			{pendingDelete && (
 				<ConfirmDialog
