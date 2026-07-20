@@ -82,10 +82,9 @@ export function RecipeModal({
 	const [error, setError] = useState<string | null>(null);
 
 	if (!recipe.recipeUrl) return null;
-	// 換圖後路徑不變，用更新時間當版本參數避免瀏覽器快取顯示舊圖
-	const imgSrc = recipe.recipeUpdatedAt
-		? `${recipe.recipeUrl}?v=${encodeURIComponent(recipe.recipeUpdatedAt)}`
-		: recipe.recipeUrl;
+	// 換圖後路徑不變，但 Worker 回傳的網址已經內建版本參數（見 worker/src/image-url.ts），
+	// 換圖後 recipeUrl 字串本身就會變，不用前端自己再接快取破壞參數
+	const imgSrc = recipe.recipeUrl;
 
 	async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
 		const file = e.target.files?.[0];

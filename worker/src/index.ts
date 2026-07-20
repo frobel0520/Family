@@ -12,6 +12,7 @@ import { handleListOrders, handleCreateOrder, handleDeleteOrder } from "./routes
 import { handleListPending, handleApprove, handleDeny } from "./routes/admin";
 import { handlePushSubscribe, handlePushUnsubscribe } from "./routes/push";
 import { handleGetProfile, handleUpdateProfile } from "./routes/profile";
+import { handleImage } from "./routes/image";
 import { jsonResponse } from "./response";
 import { handlePreflight, withCors } from "./cors";
 
@@ -96,6 +97,10 @@ async function route(request: Request, env: Env, ctx: ExecutionContext): Promise
 
 	if (request.method === "POST" && url.pathname === "/api/push/unsubscribe") {
 		return handlePushUnsubscribe(request, env);
+	}
+
+	if (request.method === "GET" && url.pathname === "/api/image") {
+		return handleImage(request, env);
 	}
 
 	return jsonResponse({ error: "Not found" }, 404);

@@ -8,7 +8,10 @@
 	// GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET / JWT_SECRET / GITHUB_BOT_PAT are secrets,
 	// set via `wrangler secret put <NAME>` — never put them here (this file is committed to git).
 	"vars": {
-		"GITHUB_REPO": "frobel0520/Family",
+		// 2026-07-20：資料/圖片搬到獨立的 private repo（frobel0520/Family-data），
+		// frobel0520/Family 現在只放前端程式碼（public，靠 GitHub Pages 部署）。
+		// GITHUB_BOT_PAT 也要換成有 Family-data 存取權的新 fine-grained PAT，見 PROGRESS.md。
+		"GITHUB_REPO": "frobel0520/Family-data",
 		// Origin header only includes scheme+host, not the /Family/ path.
 		"ALLOWED_ORIGIN": "https://frobel0520.github.io",
 		// Web Push VAPID：公鑰（前端訂閱時也要用同一把，見 frontend/src/push.ts）；

@@ -47,11 +47,16 @@ export function Board() {
 	const commentFileInputs = useRef<Record<string, HTMLInputElement | null>>({});
 
 	useEffect(() => {
-		listBoardPosts()
+		if (!session) {
+			setLoading(false);
+			return;
+		}
+		setLoading(true);
+		listBoardPosts(session.token)
 			.then(setPosts)
 			.catch((err: Error) => setLoadError(err.message))
 			.finally(() => setLoading(false));
-	}, []);
+	}, [session?.token]);
 
 	function canDelete(target: { author: string; authorEmail?: string }): boolean {
 		if (!session) return false;
@@ -201,14 +206,15 @@ export function Board() {
 					{submitError && <p className="error">{submitError}</p>}
 				</form>
 			) : (
-				<p className="hint">登入後才能發文與留言。</p>
+				<p className="hint">請先登入才能查看佈告欄內容（只有家人看得到）。</p>
 			)}
 
-			{loading && <p>載入中…</p>}
-			{loadError && <p className="error">載入失敗：{loadError}</p>}
+			{session && loading && <p>載入中…</p>}
+			{session && loadError && <p className="error">載入失敗：{loadError}</p>}
 
 			<ul className="board-list">
-				{visiblePosts.map((post) => {
+				{session &&
+					visiblePosts.map((post) => {
 					const comments = post.comments ?? [];
 					const isExpanded = expandedComments.has(post.id);
 					const shouldCollapse = comments.length > COLLAPSE_THRESHOLD && !isExpanded;
@@ -359,9 +365,9 @@ export function Board() {
 					);
 				})}
 			</ul>
-			{!loading && posts.length === 0 && <p className="hint">還沒有貼文。</p>}
+			{session && !loading && posts.length === 0 && <p className="hint">還沒有貼文。</p>}
 
-			<Pager page={page} totalPages={totalPages} onChange={setPage} />
+			{session && <Pager page={page} totalPages={totalPages} onChange={setPage} />}
 
 			{viewingImage && (
 				<div className="recipe-modal-backdrop" onClick={() => setViewingImage(null)}>
