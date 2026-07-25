@@ -1,11 +1,9 @@
-import { requireSession } from "../session";
+import { SESSION_TTL_SECONDS, requireSession } from "../session";
 import { jsonResponse } from "../response";
 import { putBase64File } from "../github-contents";
 import { avatarPathForEmail, avatarProxyUrl, getProfile, upsertProfile } from "../profiles";
 import { signSession } from "../jwt";
 import { isOwner } from "../access";
-
-const SESSION_TTL_SECONDS = 60 * 60 * 24; // 與 routes/auth.ts 一致
 
 const NICKNAME_MAX = 20;
 

@@ -55,6 +55,16 @@ export async function checkAccess(
 	return { allowed: false, pending: false };
 }
 
+/**
+ * 純讀取的存取權檢查（續期用）。跟 checkAccess 的差別是**沒有副作用**——不會把不在名單上的人
+ * 加進 pending 佇列；續期的人本來就登入過了，重新排隊審核只會製造垃圾申請。
+ */
+export async function isStillApproved(env: Env, email: string): Promise<boolean> {
+	if (isOwner(env, email)) return true;
+	const state = await getAccessState(env);
+	return state.approved.includes(email.toLowerCase());
+}
+
 export async function listPending(env: Env): Promise<PendingRequest[]> {
 	return (await getAccessState(env)).pending;
 }
