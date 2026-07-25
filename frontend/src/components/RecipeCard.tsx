@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import type { Recipe } from "../types";
 import { RecipePhoto } from "./RecipePhoto";
-import { fileToDataUrl } from "../fileToDataUrl";
+import { RECIPE_IMAGE_MAX_SIDE, fileToResizedJpegDataUrl } from "../fileToDataUrl";
 
 /**
  * 食譜卡片：插畫 + 菜名，角落是「食譜」按鈕（有食譜圖時開圖，
@@ -29,7 +29,7 @@ export function RecipeCard({
 		setUploading(true);
 		setError(null);
 		try {
-			const dataUrl = await fileToDataUrl(file);
+			const dataUrl = await fileToResizedJpegDataUrl(file, RECIPE_IMAGE_MAX_SIDE);
 			await onUploadRecipe(recipe, dataUrl);
 		} catch (err) {
 			setError((err as Error).message);
@@ -93,7 +93,7 @@ export function RecipeModal({
 		setReplacing(true);
 		setError(null);
 		try {
-			const dataUrl = await fileToDataUrl(file);
+			const dataUrl = await fileToResizedJpegDataUrl(file, RECIPE_IMAGE_MAX_SIDE);
 			await onReplace(recipe, dataUrl);
 		} catch (err) {
 			setError((err as Error).message);
