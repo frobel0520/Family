@@ -285,14 +285,22 @@
 	gap: 0.6rem;
 }
 
+/* 多張附圖的預覽縮圖排成一列，塞不下就換行 */
+.board-image-previews {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.4rem;
+}
+
 .board-image-preview {
 	position: relative;
 	align-self: flex-start;
 }
 
 .board-image-preview img {
-	max-width: 10rem;
-	max-height: 10rem;
+	width: 5rem;
+	height: 5rem;
+	object-fit: cover;
 	border-radius: 8px;
 	display: block;
 	border: 1px solid var(--border);
@@ -318,11 +326,76 @@
 	object-fit: cover;
 }
 
+/* 貼文附圖：1 張就照原比例，2 張以上排方格（4 張以上也用 3 欄，class 是 count-1/2/3） */
+.board-post-images {
+	display: grid;
+	gap: 0.35rem;
+	margin-top: 0.5rem;
+	max-width: min(100%, 22rem);
+}
+
+.board-post-images.count-2 {
+	grid-template-columns: repeat(2, 1fr);
+}
+
+.board-post-images.count-3 {
+	grid-template-columns: repeat(3, 1fr);
+}
+
+.board-post-images .board-post-image {
+	margin-top: 0;
+	width: 100%;
+	max-width: 100%;
+}
+
+.board-post-images.count-2 .board-post-image,
+.board-post-images.count-3 .board-post-image {
+	aspect-ratio: 1;
+	max-height: none;
+}
+
 .board-image-full {
 	max-width: 92vw;
 	max-height: 90vh;
 	border-radius: 8px;
 	display: block;
+}
+
+/* 燈箱左右翻頁（多張圖才出現）＋ 右下角的 n / N 計數 */
+.board-lightbox-nav {
+	position: absolute;
+	top: 50%;
+	transform: translateY(-50%);
+	background: rgba(0, 0, 0, 0.5);
+	color: #fff;
+	border: none;
+	border-radius: 50%;
+	width: 2.6rem;
+	height: 2.6rem;
+	font-size: 1.6rem;
+	line-height: 1;
+	cursor: pointer;
+	padding: 0;
+}
+
+.board-lightbox-nav.prev {
+	left: 0.6rem;
+}
+
+.board-lightbox-nav.next {
+	right: 0.6rem;
+}
+
+.board-lightbox-counter {
+	position: absolute;
+	bottom: 1.2rem;
+	left: 50%;
+	transform: translateX(-50%);
+	background: rgba(0, 0, 0, 0.55);
+	color: #fff;
+	border-radius: 999px;
+	padding: 0.15rem 0.6rem;
+	font-size: 0.85rem;
 }
 
 /* ---------- Board comments ---------- */
@@ -372,6 +445,20 @@
 	font-size: 0.92rem;
 	margin: 0.1rem 0 0;
 	overflow-wrap: anywhere;
+}
+
+.board-comment-images {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.3rem;
+}
+
+/* 留言有兩張以上圖時縮成小方格（只有一張維持原本大小） */
+.board-comment-images .board-comment-image:not(:only-child) {
+	width: 7rem;
+	height: 7rem;
+	max-width: 7rem;
+	max-height: 7rem;
 }
 
 .board-comment-image {
@@ -439,8 +526,8 @@
 }
 
 .board-comment-image-preview img {
-	max-width: 6rem;
-	max-height: 6rem;
+	width: 4rem;
+	height: 4rem;
 }
 
 /* ---------- Install (PWA) page ---------- */

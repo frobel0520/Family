@@ -4,7 +4,7 @@ export interface BoardComment {
 	authorEmail?: string; // 刪除權限比對用；舊資料沒有
 	avatar?: string;
 	content: string; // 有附圖時可能是空字串
-	imageUrl?: string | null; // 附圖（Worker 已轉成 raw URL）
+	imageUrls?: string[]; // 附圖（Worker 已把舊的單張欄位也攤進這個陣列並轉成簽章網址）
 	createdAt: string;
 }
 
@@ -14,7 +14,7 @@ export interface BoardPost {
 	authorEmail?: string; // 刪除權限比對用；舊資料沒有
 	avatar?: string; // 舊貼文沒有頭像，前端用名字首字替代
 	content: string; // 有附圖時可能是空字串
-	imageUrl?: string | null; // 附圖（Worker 已轉成 raw URL）
+	imageUrls?: string[]; // 附圖（Worker 已把舊的單張欄位也攤進這個陣列並轉成簽章網址）
 	createdAt: string;
 	updatedAt: string;
 	comments?: BoardComment[];

@@ -17,6 +17,8 @@ const PAGE_SIZE = 5;
 // 超過這個數字才收合；收合時只露出最新的 COLLAPSED_VISIBLE_COUNT 則（像 Facebook）
 const COLLAPSE_THRESHOLD = 3;
 const COLLAPSED_VISIBLE_COUNT = 2;
+// 一則貼文/留言最多幾張圖（Worker 端也會擋，這裡是為了先給使用者提示）
+const MAX_IMAGES = 9;
 
 function formatTime(iso: string): string {
 	return new Date(iso).toLocaleString("zh-TW", { dateStyle: "short", timeStyle: "short" });
@@ -25,6 +27,9 @@ function formatTime(iso: string): string {
 type PendingDelete =
 	| { kind: "post"; post: BoardPost }
 	| { kind: "comment"; postId: string; comment: BoardComment };
+
+/** 燈箱看的是「某一組圖的第幾張」，這樣多張圖可以左右翻。 */
+type ViewingImages = { urls: string[]; index: number };
 
 export function Board() {
 	const { session } = useAuth();
@@ -36,12 +41,12 @@ export function Board() {
 	const [submitError, setSubmitError] = useState<string | null>(null);
 	const [page, setPage] = useState(1);
 	const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
-	const [commentImages, setCommentImages] = useState<Record<string, string>>({}); // postId -> data URL
+	const [commentImages, setCommentImages] = useState<Record<string, string[]>>({}); // postId -> data URLs
 	const [commentingId, setCommentingId] = useState<string | null>(null);
 	const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null);
 	const [deleting, setDeleting] = useState(false);
-	const [attachedImage, setAttachedImage] = useState<string | null>(null); // data URL
-	const [viewingImage, setViewingImage] = useState<string | null>(null); // 點圖放大
+	const [attachedImages, setAttachedImages] = useState<string[]>([]); // data URLs
+	const [viewing, setViewing] = useState<ViewingImages | null>(null); // 點圖放大
 	const [expandedComments, setExpandedComments] = useState<Set<string>>(new Set());
 	const fileInput = useRef<HTMLInputElement>(null);
 	const commentFileInputs = useRef<Record<string, HTMLInputElement | null>>({});
@@ -58,6 +63,27 @@ export function Board() {
 			.finally(() => setLoading(false));
 	}, [session?.token]);
 
+	// 燈箱開著時用鍵盤左右翻圖／Esc 關閉（桌機用；手機還是點兩側的箭頭）
+	useEffect(() => {
+		if (!viewing) return;
+		function onKeyDown(e: KeyboardEvent) {
+			if (e.key === "Escape") setViewing(null);
+			else if (e.key === "ArrowRight") stepViewing(1);
+			else if (e.key === "ArrowLeft") stepViewing(-1);
+		}
+		window.addEventListener("keydown", onKeyDown);
+		return () => window.removeEventListener("keydown", onKeyDown);
+	}, [viewing]);
+
+	/** 在同一組圖裡前後翻（頭尾循環）。 */
+	function stepViewing(delta: number) {
+		setViewing((prev) => {
+			if (!prev) return prev;
+			const count = prev.urls.length;
+			return { ...prev, index: (prev.index + delta + count) % count };
+		});
+	}
+
 	function canDelete(target: { author: string; authorEmail?: string }): boolean {
 		if (!session) return false;
 		if (session.isOwner) return true;
@@ -68,15 +94,15 @@ export function Board() {
 
 	async function handleSubmit(e: React.FormEvent) {
 		e.preventDefault();
-		if (!session || (!content.trim() && !attachedImage)) return;
+		if (!session || (!content.trim() && attachedImages.length === 0)) return;
 
 		setSubmitting(true);
 		setSubmitError(null);
 		try {
-			const newPost = await createBoardPost(session.token, content.trim(), attachedImage ?? undefined);
+			const newPost = await createBoardPost(session.token, content.trim(), attachedImages);
 			setPosts((prev) => [newPost, ...prev]);
 			setContent("");
-			setAttachedImage(null);
+			setAttachedImages([]);
 			setPage(1); // new post sorts first — jump back to page 1 so it's visible
 		} catch (err) {
 			setSubmitError((err as Error).message);
@@ -85,40 +111,56 @@ export function Board() {
 		}
 	}
 
-	async function onPickImage(e: React.ChangeEvent<HTMLInputElement>) {
-		const file = e.target.files?.[0];
-		e.target.value = ""; // 同一張圖可以重選
-		if (!file) return;
+	/** 選到的檔案一起縮圖，接在已選的後面（可以分幾次選）；超過上限就擋下來。 */
+	async function resizePicked(files: File[], alreadyPicked: number): Promise<string[] | null> {
+		if (alreadyPicked + files.length > MAX_IMAGES) {
+			setSubmitError(`一次最多 ${MAX_IMAGES} 張圖片`);
+			return null;
+		}
 		setSubmitError(null);
 		try {
-			setAttachedImage(await fileToResizedJpegDataUrl(file, 1280));
+			return await Promise.all(files.map((file) => fileToResizedJpegDataUrl(file, 1280)));
 		} catch (err) {
 			setSubmitError((err as Error).message);
+			return null;
 		}
 	}
 
-	async function onPickCommentImage(postId: string, e: React.ChangeEvent<HTMLInputElement>) {
-		const file = e.target.files?.[0];
+	async function onPickImages(e: React.ChangeEvent<HTMLInputElement>) {
+		const files = Array.from(e.target.files ?? []);
+		e.target.value = ""; // 同一張圖可以重選
+		if (files.length === 0) return;
+		const dataUrls = await resizePicked(files, attachedImages.length);
+		if (dataUrls) setAttachedImages((prev) => [...prev, ...dataUrls]);
+	}
+
+	async function onPickCommentImages(postId: string, e: React.ChangeEvent<HTMLInputElement>) {
+		const files = Array.from(e.target.files ?? []);
 		e.target.value = "";
-		if (!file) return;
-		setSubmitError(null);
-		try {
-			const dataUrl = await fileToResizedJpegDataUrl(file, 1280);
-			setCommentImages((prev) => ({ ...prev, [postId]: dataUrl }));
-		} catch (err) {
-			setSubmitError((err as Error).message);
-		}
+		if (files.length === 0) return;
+		const dataUrls = await resizePicked(files, commentImages[postId]?.length ?? 0);
+		if (dataUrls) setCommentImages((prev) => ({ ...prev, [postId]: [...(prev[postId] ?? []), ...dataUrls] }));
+	}
+
+	function removeCommentImage(postId: string, index: number) {
+		setCommentImages((prev) => {
+			const next = { ...prev };
+			const remaining = (next[postId] ?? []).filter((_, i) => i !== index);
+			if (remaining.length) next[postId] = remaining;
+			else delete next[postId];
+			return next;
+		});
 	}
 
 	async function handleAddComment(post: BoardPost) {
 		const draft = (commentDrafts[post.id] ?? "").trim();
-		const image = commentImages[post.id];
-		if (!session || (!draft && !image)) return;
+		const images = commentImages[post.id] ?? [];
+		if (!session || (!draft && images.length === 0)) return;
 
 		setCommentingId(post.id);
 		setSubmitError(null);
 		try {
-			const newComment = await createBoardComment(session.token, post.id, draft, image);
+			const newComment = await createBoardComment(session.token, post.id, draft, images);
 			setPosts((prev) =>
 				prev.map((p) => (p.id === post.id ? { ...p, comments: [...(p.comments ?? []), newComment] } : p)),
 			);
@@ -186,20 +228,40 @@ export function Board() {
 						placeholder="想說點什麼..."
 						rows={3}
 					/>
-					{attachedImage && (
-						<div className="board-image-preview">
-							<img src={attachedImage} alt="附圖預覽" />
-							<button type="button" className="delete-x" aria-label="移除附圖" onClick={() => setAttachedImage(null)}>
-								✕
-							</button>
+					{attachedImages.length > 0 && (
+						<div className="board-image-previews">
+							{attachedImages.map((dataUrl, index) => (
+								<div key={index} className="board-image-preview">
+									<img src={dataUrl} alt={`附圖預覽 ${index + 1}`} />
+									<button
+										type="button"
+										className="delete-x"
+										aria-label={`移除第 ${index + 1} 張附圖`}
+										onClick={() => setAttachedImages((prev) => prev.filter((_, i) => i !== index))}
+									>
+										✕
+									</button>
+								</div>
+							))}
 						</div>
 					)}
 					<div className="board-form-actions">
-						<button type="button" disabled={submitting} onClick={() => fileInput.current?.click()}>
-							📷 {attachedImage ? "換一張圖" : "附上圖片"}
+						<button
+							type="button"
+							disabled={submitting || attachedImages.length >= MAX_IMAGES}
+							onClick={() => fileInput.current?.click()}
+						>
+							📷 {attachedImages.length > 0 ? `再加圖片（${attachedImages.length}/${MAX_IMAGES}）` : "附上圖片"}
 						</button>
-						<input ref={fileInput} type="file" accept="image/*" style={{ display: "none" }} onChange={onPickImage} />
-						<button type="submit" disabled={submitting || (!content.trim() && !attachedImage)}>
+						<input
+							ref={fileInput}
+							type="file"
+							accept="image/*"
+							multiple
+							style={{ display: "none" }}
+							onChange={onPickImages}
+						/>
+						<button type="submit" disabled={submitting || (!content.trim() && attachedImages.length === 0)}>
 							{submitting ? "送出中…" : "發布"}
 						</button>
 					</div>
@@ -220,7 +282,8 @@ export function Board() {
 					const shouldCollapse = comments.length > COLLAPSE_THRESHOLD && !isExpanded;
 					const visibleComments = shouldCollapse ? comments.slice(-COLLAPSED_VISIBLE_COUNT) : comments;
 					const hiddenCount = comments.length - visibleComments.length;
-					const commentImage = commentImages[post.id];
+					const draftImages = commentImages[post.id] ?? [];
+					const postImages = post.imageUrls ?? [];
 
 					return (
 						<li key={post.id} className="board-post">
@@ -232,14 +295,19 @@ export function Board() {
 								</div>
 							</div>
 							{post.content && <p>{post.content}</p>}
-							{post.imageUrl && (
-								<img
-									className="board-post-image"
-									src={post.imageUrl}
-									alt="貼文附圖"
-									loading="lazy"
-									onClick={() => setViewingImage(post.imageUrl!)}
-								/>
+							{postImages.length > 0 && (
+								<div className={`board-post-images count-${Math.min(postImages.length, 3)}`}>
+									{postImages.map((url, index) => (
+										<img
+											key={url}
+											className="board-post-image"
+											src={url}
+											alt={`貼文附圖 ${index + 1}`}
+											loading="lazy"
+											onClick={() => setViewing({ urls: postImages, index })}
+										/>
+									))}
+								</div>
 							)}
 							{canDelete(post) && (
 								<button
@@ -268,14 +336,19 @@ export function Board() {
 												<span className="board-post-time">{formatTime(comment.createdAt)}</span>
 											</div>
 											{comment.content && <p>{comment.content}</p>}
-											{comment.imageUrl && (
-												<img
-													className="board-comment-image"
-													src={comment.imageUrl}
-													alt="留言附圖"
-													loading="lazy"
-													onClick={() => setViewingImage(comment.imageUrl!)}
-												/>
+											{(comment.imageUrls ?? []).length > 0 && (
+												<div className="board-comment-images">
+													{comment.imageUrls!.map((url, index) => (
+														<img
+															key={url}
+															className="board-comment-image"
+															src={url}
+															alt={`留言附圖 ${index + 1}`}
+															loading="lazy"
+															onClick={() => setViewing({ urls: comment.imageUrls!, index })}
+														/>
+													))}
+												</div>
 											)}
 										</div>
 										{canDelete(comment) && (
@@ -299,23 +372,21 @@ export function Board() {
 
 								{session && (
 									<div className="board-comment-form">
-										{commentImage && (
-											<div className="board-image-preview board-comment-image-preview">
-												<img src={commentImage} alt="留言附圖預覽" />
-												<button
-													type="button"
-													className="delete-x"
-													aria-label="移除附圖"
-													onClick={() =>
-														setCommentImages((prev) => {
-															const next = { ...prev };
-															delete next[post.id];
-															return next;
-														})
-													}
-												>
-													✕
-												</button>
+										{draftImages.length > 0 && (
+											<div className="board-image-previews">
+												{draftImages.map((dataUrl, index) => (
+													<div key={index} className="board-image-preview board-comment-image-preview">
+														<img src={dataUrl} alt={`留言附圖預覽 ${index + 1}`} />
+														<button
+															type="button"
+															className="delete-x"
+															aria-label={`移除第 ${index + 1} 張附圖`}
+															onClick={() => removeCommentImage(post.id, index)}
+														>
+															✕
+														</button>
+													</div>
+												))}
 											</div>
 										)}
 										<div className="board-comment-form-row">
@@ -335,6 +406,7 @@ export function Board() {
 												type="button"
 												className="board-comment-image-btn"
 												aria-label="附上圖片"
+												disabled={draftImages.length >= MAX_IMAGES}
 												onClick={() => commentFileInputs.current[post.id]?.click()}
 											>
 												📷
@@ -345,13 +417,15 @@ export function Board() {
 												}}
 												type="file"
 												accept="image/*"
+												multiple
 												style={{ display: "none" }}
-												onChange={(e) => onPickCommentImage(post.id, e)}
+												onChange={(e) => onPickCommentImages(post.id, e)}
 											/>
 											<button
 												type="button"
 												disabled={
-													commentingId === post.id || (!(commentDrafts[post.id] ?? "").trim() && !commentImage)
+													commentingId === post.id ||
+													(!(commentDrafts[post.id] ?? "").trim() && draftImages.length === 0)
 												}
 												onClick={() => handleAddComment(post)}
 											>
@@ -369,9 +443,43 @@ export function Board() {
 
 			{session && <Pager page={page} totalPages={totalPages} onChange={setPage} />}
 
-			{viewingImage && (
-				<div className="recipe-modal-backdrop" onClick={() => setViewingImage(null)}>
-					<img className="board-image-full" src={viewingImage} alt="附圖" onClick={(e) => e.stopPropagation()} />
+			{viewing && (
+				<div className="recipe-modal-backdrop" onClick={() => setViewing(null)}>
+					<img
+						className="board-image-full"
+						src={viewing.urls[viewing.index]}
+						alt={`附圖 ${viewing.index + 1}`}
+						onClick={(e) => e.stopPropagation()}
+					/>
+					{viewing.urls.length > 1 && (
+						<>
+							<button
+								type="button"
+								className="board-lightbox-nav prev"
+								aria-label="上一張"
+								onClick={(e) => {
+									e.stopPropagation();
+									stepViewing(-1);
+								}}
+							>
+								‹
+							</button>
+							<button
+								type="button"
+								className="board-lightbox-nav next"
+								aria-label="下一張"
+								onClick={(e) => {
+									e.stopPropagation();
+									stepViewing(1);
+								}}
+							>
+								›
+							</button>
+							<span className="board-lightbox-counter">
+								{viewing.index + 1} / {viewing.urls.length}
+							</span>
+						</>
+					)}
 				</div>
 			)}
 
