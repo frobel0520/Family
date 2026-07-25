@@ -6,6 +6,10 @@ import { notifyAll } from "../notify";
 interface Order {
 	id: string;
 	dishName: string;
+	/** 點的人（顯示名稱，暱稱優先）。舊資料沒有這三個欄位，前端只顯示時間。 */
+	orderedBy?: string;
+	orderedByEmail?: string;
+	avatar?: string;
 	createdAt: string;
 }
 
@@ -36,6 +40,9 @@ export async function handleCreateOrder(request: Request, env: Env, ctx: Executi
 	const newOrder: Order = {
 		id: crypto.randomUUID(),
 		dishName: body.dishName.trim(),
+		orderedBy: auth.session.name,
+		orderedByEmail: auth.session.email.toLowerCase(),
+		avatar: auth.session.avatar,
 		createdAt: new Date().toISOString(),
 	};
 

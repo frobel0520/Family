@@ -790,6 +790,36 @@
 	gap: 0.5rem;
 }
 
+.order-item-body {
+	display: flex;
+	flex-direction: column;
+	gap: 0.15rem;
+	min-width: 0;
+}
+
+.order-dish {
+	font-weight: 600;
+}
+
+/* 誰點的 + 什麼時候點的；舊資料沒有點餐人，只會有時間 */
+.order-meta {
+	display: flex;
+	align-items: center;
+	gap: 0.3rem;
+	font-size: 0.78rem;
+	color: var(--text-soft);
+}
+
+.order-meta .user-avatar {
+	width: 1.25rem;
+	height: 1.25rem;
+	font-size: 0.7rem;
+}
+
+.order-by {
+	font-weight: 600;
+}
+
 .recipe-photo-box {
 	position: relative;
 }
