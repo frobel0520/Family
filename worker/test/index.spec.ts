@@ -25,6 +25,14 @@ describe("router", () => {
 		expect(response.status).toBe(401);
 	});
 
+	it("requires a still-valid token to refresh a session (過期就只能重新登入)", async () => {
+		const request = new IncomingRequest("http://example.com/api/auth/refresh", { method: "POST" });
+		const ctx = createExecutionContext();
+		const response = await worker.fetch(request, env, ctx);
+		await waitOnExecutionContext(ctx);
+		expect(response.status).toBe(401);
+	});
+
 	it("requires auth on the board/recipes/orders lists (repo is private now)", async () => {
 		for (const path of ["/api/board", "/api/recipes", "/api/orders"]) {
 			const request = new IncomingRequest(`http://example.com${path}`);
