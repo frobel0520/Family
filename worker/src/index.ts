@@ -1,4 +1,4 @@
-import { handleAuthCallback } from "./routes/auth";
+import { handleAuthCallback, handleAuthRefresh } from "./routes/auth";
 import { handleMe } from "./routes/me";
 import {
 	handleListBoardPosts,
@@ -21,6 +21,10 @@ async function route(request: Request, env: Env, ctx: ExecutionContext): Promise
 
 	if (request.method === "POST" && url.pathname === "/api/auth/callback") {
 		return handleAuthCallback(request, env, ctx);
+	}
+
+	if (request.method === "POST" && url.pathname === "/api/auth/refresh") {
+		return handleAuthRefresh(request, env);
 	}
 
 	if (request.method === "GET" && url.pathname === "/api/me") {
