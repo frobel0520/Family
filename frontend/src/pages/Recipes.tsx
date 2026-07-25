@@ -3,7 +3,7 @@ import { useAuth } from "../auth/AuthContext";
 import { createRecipe, listRecipes, uploadRecipeImage } from "../api";
 import type { Recipe } from "../types";
 import { RECIPE_CATEGORIES } from "../recipeCategories";
-import { fileToDataUrl } from "../fileToDataUrl";
+import { RECIPE_IMAGE_MAX_SIDE, fileToResizedJpegDataUrl } from "../fileToDataUrl";
 import { RecipeCard, RecipeModal } from "../components/RecipeCard";
 import { Pager } from "../components/Pager";
 
@@ -49,7 +49,9 @@ export function Recipes() {
 		setSubmitting(true);
 		setSubmitError(null);
 		try {
-			const recipeImageBase64 = recipeFile ? await fileToDataUrl(recipeFile) : undefined;
+			const recipeImageBase64 = recipeFile
+				? await fileToResizedJpegDataUrl(recipeFile, RECIPE_IMAGE_MAX_SIDE)
+				: undefined;
 			const newRecipe = await createRecipe(session.token, { name: name.trim(), category, recipeImageBase64 });
 			setRecipes((prev) => [...prev, newRecipe]);
 			setName("");

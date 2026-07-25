@@ -1,4 +1,10 @@
-/** 等比例縮小到最長邊 maxSide 的 JPEG data URL（貼文附圖用；比 maxSide 小就不放大）。 */
+/**
+ * 食譜圖（手寫食譜照片）的最長邊。比貼文圖的 1280 大一點，手寫字才看得清楚；
+ * 但一定要縮——原圖直傳的年代平均一張 2.9 MB，17 張就吃掉整個 data repo 的 85%。
+ */
+export const RECIPE_IMAGE_MAX_SIDE = 1600;
+
+/** 等比例縮小到最長邊 maxSide 的 JPEG data URL（貼文附圖／食譜圖用；比 maxSide 小就不放大）。 */
 export function fileToResizedJpegDataUrl(file: File, maxSide = 1280): Promise<string> {
 	return new Promise((resolve, reject) => {
 		const url = URL.createObjectURL(file);
@@ -51,14 +57,5 @@ export function fileToSquareJpegDataUrl(file: File, size = 256): Promise<string>
 			reject(new Error("讀不了這張圖片"));
 		};
 		img.src = url;
-	});
-}
-
-export function fileToDataUrl(file: File): Promise<string> {
-	return new Promise((resolve, reject) => {
-		const reader = new FileReader();
-		reader.onload = () => resolve(reader.result as string);
-		reader.onerror = () => reject(reader.error ?? new Error("Failed to read file"));
-		reader.readAsDataURL(file);
 	});
 }
