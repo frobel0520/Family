@@ -820,6 +820,14 @@
 	font-weight: 600;
 }
 
+/* 「完成訂單」：做好的菜按一下就從列表移除（取代原本的 ✕，語意比較清楚） */
+.order-done-btn {
+	font-size: 0.78rem;
+	padding: 0.3rem 0.7rem;
+	white-space: nowrap;
+	flex-shrink: 0;
+}
+
 .recipe-photo-box {
 	position: relative;
 }

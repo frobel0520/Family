@@ -22,8 +22,8 @@ export function Orders() {
 	const [addingId, setAddingId] = useState<string | null>(null);
 	const [addError, setAddError] = useState<string | null>(null);
 	const [viewing, setViewing] = useState<Recipe | null>(null);
-	const [pendingDelete, setPendingDelete] = useState<Order | null>(null);
-	const [deleting, setDeleting] = useState(false);
+	const [pendingDone, setPendingDone] = useState<Order | null>(null);
+	const [completing, setCompleting] = useState(false);
 
 	useEffect(() => {
 		if (!session) {
@@ -59,17 +59,17 @@ export function Orders() {
 		setPage(1);
 	}
 
-	async function confirmDelete() {
-		if (!session || !pendingDelete) return;
-		setDeleting(true);
+	async function confirmDone() {
+		if (!session || !pendingDone) return;
+		setCompleting(true);
 		try {
-			await deleteOrder(session.token, pendingDelete.id);
-			setOrders((prev) => prev.filter((o) => o.id !== pendingDelete.id));
+			await deleteOrder(session.token, pendingDone.id);
+			setOrders((prev) => prev.filter((o) => o.id !== pendingDone.id));
 		} catch (err) {
 			setAddError((err as Error).message);
 		} finally {
-			setDeleting(false);
-			setPendingDelete(null);
+			setCompleting(false);
+			setPendingDone(null);
 		}
 	}
 
@@ -126,12 +126,12 @@ export function Orders() {
 									<li key={order.id} className="order-item">
 										<div className="order-item-body">
 											<span className="order-dish">{order.dishName}</span>
-											{/* 舊資料沒有 orderedBy，只顯示時間 */}
+											{/* 這個功能上線前的舊訂單沒有 orderedBy（當初根本沒存），只顯示時間 */}
 											<span className="order-meta">
 												{order.orderedBy && (
 													<>
 														<Avatar name={order.orderedBy} avatar={order.avatar} />
-														<span className="order-by">{order.orderedBy}</span>
+														<span className="order-by">by {order.orderedBy}</span>
 														<span aria-hidden>·</span>
 													</>
 												)}
@@ -140,11 +140,10 @@ export function Orders() {
 										</div>
 										<button
 											type="button"
-											className="delete-x"
-											aria-label={`刪除 ${order.dishName}`}
-											onClick={() => setPendingDelete(order)}
+											className="order-done-btn"
+											onClick={() => setPendingDone(order)}
 										>
-											✕
+											完成訂單
 										</button>
 									</li>
 								))}
@@ -157,16 +156,18 @@ export function Orders() {
 
 			{viewing && <RecipeModal recipe={viewing} onClose={() => setViewing(null)} />}
 
-			{pendingDelete && (
+			{pendingDone && (
 				<ConfirmDialog
 					message={
-						pendingDelete.orderedBy
-							? `確定要刪除${pendingDelete.orderedBy}點的「${pendingDelete.dishName}」嗎？`
-							: `確定要刪除「${pendingDelete.dishName}」這筆點菜嗎？`
+						pendingDone.orderedBy
+							? `${pendingDone.orderedBy}點的「${pendingDone.dishName}」完成了嗎？完成後會從訂單列表移除。`
+							: `「${pendingDone.dishName}」完成了嗎？完成後會從訂單列表移除。`
 					}
-					busy={deleting}
-					onConfirm={confirmDelete}
-					onCancel={() => setPendingDelete(null)}
+					confirmLabel="完成"
+					busyLabel="處理中…"
+					busy={completing}
+					onConfirm={confirmDone}
+					onCancel={() => setPendingDone(null)}
 				/>
 			)}
 		</div>
