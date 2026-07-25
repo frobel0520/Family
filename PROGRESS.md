@@ -11,16 +11,17 @@
 |---|---|
 | Cloudflare Worker 後端（Google OAuth、CORS、GitHub Contents API 讀寫） | ✅ 已完成並部署，登入已改成 Google OAuth 並實測成功 |
 | 登入審核機制（同意/拒絕新申請，取代寫死白名單） | ✅ 已完成並實測成功（申請 → 審核頁核准 → 對方重新登入成功） |
+| 記住登入（不用每天重登） | ✅ 已實作、**尚未部署**（2026-07-25）：session 從 24h 改成 30 天＋開 App 自動續期（`POST /api/auth/refresh`），詳見下方「記住登入」章節 |
 | GitHub Pages 部署 pipeline（GitHub Actions） | ✅ 已跑通 |
 | 前端登入/導覽框架 + UI 主題 | ✅ 已完成 |
-| 佈告欄 / 食譜庫 / 點菜頁面 | ✅ 已實作（讀取 + 新增）。食譜庫已改版：菜色圖固定用插畫（移除菜色照片上傳）；新增「食譜圖」功能——登入者可對每道菜上傳手寫食譜照片（卡片角落「＋食譜」），有食譜圖的卡片顯示「📖 食譜」按鈕點開彈窗看圖（`recipeUrl` 欄位、`POST /api/recipes/recipe-image`）。新增菜色只填菜名＋分類（＋可選食譜圖），菜色圖之後補插畫。後續 UI 調整：「食譜庫」改名「食譜」；新增菜色表單收在標題旁的「＋」圓鈕（送出後自動收合）；訂單項目可按 ✕ 刪除（登入即可，`POST /api/orders/delete`）；食譜圖可在彈窗內「更換圖片」 |
+| 佈告欄 / 食譜庫 / 點菜頁面 | ✅ 已實作（讀取 + 新增）。食譜庫已改版：菜色圖固定用插畫（移除菜色照片上傳）；新增「食譜圖」功能——登入者可對每道菜上傳手寫食譜照片（卡片角落「＋食譜」），有食譜圖的卡片顯示「📖 食譜」按鈕點開彈窗看圖（`recipeUrl` 欄位、`POST /api/recipes/recipe-image`）。新增菜色只填菜名＋分類（＋可選食譜圖），菜色圖之後補插畫。後續 UI 調整：「食譜庫」改名「食譜」；新增菜色表單收在標題旁的「＋」圓鈕（送出後自動收合）；訂單項目可按 ✕ 刪除（登入即可，`POST /api/orders/delete`）；**2026-07-25：訂單列表顯示點餐人＋點餐時間**（詳見下方章節）；食譜圖可在彈窗內「更換圖片」。**2026-07-25：食譜圖上傳改成先縮到最長邊 1600 的 JPEG**（原本原圖直傳，平均一張 2.9 MB，詳見下方「食譜圖改成縮圖上傳 + 空間用量盤點」） |
 | 食譜庫資料 | ✅ 已匯入 160 道菜（8 大分類），**160/160 全部為自製扁平風插畫**（照片已全數汰換，0 張授權照片；`PhotoCredits` 頁尾區塊在沒有授權圖時會自動隱藏），家人實拍可隨時覆蓋 |
 | 佈告欄「刪除自己的貼文」 | ✅ 已實作（本人或擁有者可按 ✕ 刪，`POST /api/board/delete`）；「編輯」仍未做 |
 | 佈告欄「貼文底下留言」 | ✅ 已實作（2026-07-19）：留言存在貼文物件的 `comments` 陣列（`POST /api/board/comment` 新增、`POST /api/board/comment/delete` 刪除，刪除限本人或擁有者）。貼文與留言都存 `avatar` 欄位並顯示頭像＋名稱＋時間（舊資料沒有 `avatar`/`comments` 欄位，前端用名字首字當替代頭像、留言區顯示為空，相容無誤）。已部署（2026-07-19，Worker + Pages 都上線並煙霧測試通過） |
 | 刪除操作的確認彈窗 | ✅ 已實作（2026-07-19）：新增共用 `ConfirmDialog` 元件（`frontend/src/components/ConfirmDialog.tsx`），佈告欄刪貼文/刪留言、點菜刪訂單（原本完全沒確認）都套用；取代原本的 `window.confirm`。已部署（2026-07-19） |
 | PWA：安裝到主畫面 | ✅ 已完成並部署（2026-07-19）：`manifest.webmanifest`（standalone、`/Family/` scope）、自製小屋圖示（192/512/apple-touch-icon，scratchpad SVG 轉出）、極簡 Service Worker（`public/sw.js`，**刻意不做離線快取**避免舊版前端卡快取，只留 push/notificationclick handler）、`/install` 安裝教學頁（iOS/Android 分平台步驟 + Android `beforeinstallprompt` 一鍵安裝） |
-| 佈告欄「發文附圖」 | ✅ 已完成並部署（2026-07-19）：發文可附一張圖（也可以只有圖沒文字）。前端 canvas 等比縮到最長邊 1280 的 JPEG（`fileToResizedJpegDataUrl`）再送 base64；Worker 存 `images/board/<postId>.jpg`（先傳圖成功才寫 board.json，不會有半套狀態），board.json 存 repo 相對路徑 `imagePath`，回傳前端時轉成 `imageUrl`（raw URL，貼文不可改圖所以不用快取破壞參數）。貼文圖點擊放大（重用 recipe-modal-backdrop 燈箱）。刪貼文**不會**刪掉 repo 裡的圖片檔（孤兒圖，家庭規模可接受，公開 repo 本來就看得到） |
-| 留言附圖 + 留言收合 | ✅ 已完成並部署（2026-07-19）：留言比照貼文可附一張圖（同樣可以只有圖沒文字），存 `images/board/comments/<commentId>.jpg`，`BoardComment` 多 `imagePath`/`imageUrl`。留言區收合仿 Facebook：`Board.tsx` 的 `COLLAPSE_THRESHOLD=3`／`COLLAPSED_VISIBLE_COUNT=2`，超過 3 則只露出最新 2 則＋「查看全部 N 則留言」，點了才整串展開並可「收合留言」；剛送出留言後該貼文會自動展開（不然使用者會以為自己的留言消失了）。點留言圖也能放大（跟貼文圖共用同一個燈箱/viewingImage state） |
+| 佈告欄「發文附圖」 | ✅ 已完成並部署（2026-07-19）：發文可附一張圖（也可以只有圖沒文字）。前端 canvas 等比縮到最長邊 1280 的 JPEG（`fileToResizedJpegDataUrl`）再送 base64；Worker 存 `images/board/<postId>.jpg`（先傳圖成功才寫 board.json，不會有半套狀態），board.json 存 repo 相對路徑 `imagePath`，回傳前端時轉成 `imageUrl`（raw URL，貼文不可改圖所以不用快取破壞參數）。貼文圖點擊放大（重用 recipe-modal-backdrop 燈箱）。刪貼文**不會**刪掉 repo 裡的圖片檔（孤兒圖，家庭規模可接受，公開 repo 本來就看得到）。**2026-07-25 改成一次可傳多張（上限 9 張）**：詳見下方「✅ 已完成：貼文／留言多張附圖」 |
+| 留言附圖 + 留言收合 | ✅ 已完成並部署（2026-07-19）：留言比照貼文可附一張圖（同樣可以只有圖沒文字），存 `images/board/comments/<commentId>.jpg`，`BoardComment` 多 `imagePath`/`imageUrl`。留言區收合仿 Facebook：`Board.tsx` 的 `COLLAPSE_THRESHOLD=3`／`COLLAPSED_VISIBLE_COUNT=2`，超過 3 則只露出最新 2 則＋「查看全部 N 則留言」，點了才整串展開並可「收合留言」；剛送出留言後該貼文會自動展開（不然使用者會以為自己的留言消失了）。點留言圖也能放大（跟貼文圖共用同一個燈箱 state）。**2026-07-25 起留言同樣可以一次傳多張（上限 9 張）** |
 | 設定頁（`/settings`，原 `/install` 改名並保留舊路由） | ✅ 已完成並部署（2026-07-19）：三區塊＝👤 個人資料（暱稱＋大頭貼）、🔔 通知開關、📲 安裝教學。暱稱/自訂大頭貼存 `data/profiles.json`（key=email 小寫），大頭貼傳 `images/avatars/<sha256(email) 前 16 hex>.jpg`（前端 canvas 裁 256x256 JPEG 再上傳）。**登入時套用**（`routes/auth.ts` 讀 profile → JWT 的 name/avatar 就是生效值，發文留言點菜自動用暱稱）；JWT 另存 `googleName`/`googleAvatar` 供「清除暱稱／改回 Google 大頭貼」還原。`POST /api/profile` 會**重簽 session 回傳**，前端 `applySessionResponse` 即時套用不用重登。貼文/留言新增 `authorEmail` 欄位，刪除權限改用 email 比對（暱稱改名不影響），舊資料 fallback 名字比對 |
 | 推播通知（Web Push） | ✅ 已完成並部署（2026-07-19）：純 WebCrypto 實作 RFC 8291 aes128gcm 加密 + RFC 8292 VAPID（`worker/src/web-push.ts`，**有 vitest 測試對照 RFC 8291 附錄 A 官方向量**，不用 Node 專用的 npm web-push）。訂閱存 Cloudflare KV（binding `PUSH_SUBS`，id `4b6a850c...`，一台裝置一筆，key = `sub:<b64url endpoint>`，發送遇 404/410 自動清除失效訂閱）。VAPID 私鑰 = secret `VAPID_PRIVATE_JWK`，公鑰在 `wrangler.jsonc` vars + `frontend/src/push.ts` 各一份（**兩邊要一致**）。觸發點（都 `ctx.waitUntil` 背景送、排除觸發者本人）：新貼文/新留言→全員、點菜→全員、新登入申請→僅擁有者。前端開關在設定頁「🔔 通知」區塊。**通知外觀**（2026-07-19 補）：payload 帶 `tag`（board/orders/admin，同 tag 在 Android 摺疊成一則、SW 用 `getNotifications({tag})` 疊加「還有 N 則」計數）＋ `icon`（觸發者大頭貼當縮圖）；`public/badge.png` 是透明底白色小屋剪影（Android 狀態列 badge 必須單色透明底，彩色圖會變一片白）。**iOS 全部不適用**：通知圖示固定是 App 圖示、不能自訂縮圖，堆疊由系統自動做。**App 圖示紅點**（2026-07-20 補，家人反饋要求）：Badging API（`navigator.setAppBadge()`，不帶數字，單純一個點），`sw.js` 收到 push 就設、`notificationclick` 或前端 `main.tsx` 偵測到 App 開啟/切回前景就清掉。**只有 Android 支援**——iOS Safari 完全沒實作這個標準（跟 Web Push 不一樣，那個 iOS 有做），呼叫在 iOS 上安靜失敗，iPhone 家人只能靠推播通知本身，圖示不會有紅點。**2026-07-20 追加討論**：家人全部是 iPhone，問能不能做類似效果。研究結論：**PWA 在 iOS 上沒有任何辦法（不只紅點，任何形式）在主畫面圖示旁邊顯示標記**——WebKit 完全沒開放這個能力，不是技術難度問題，沒有 workaround。曾提出「在 App 內導覽列做未讀提示」當次優解（做到一半，程式碼已還原、沒有留在專案裡），但使用者要的明確是「圖示旁邊」，這個退而求其次的方案不符合需求，故不採用。**真正能做到的唯一路徑是包成原生 App**（例如用 Capacitor 包現有網頁），代價是要加入 Apple Developer Program（US$99/年）＋ TestFlight／App Store 上架＋家人要重新安裝——這正是當初選 PWA 想避開的成本，使用者確認**不做**，維持現在的 PWA 版本。iPhone 家人的新內容提醒目前只能靠推播通知本身（鎖屏/通知中心），圖示旁邊沒有標記是已知且不會解決的限制 |
 | **隱私：所有內容只有登入的家人能看** | ✅ 已完成並部署（2026-07-20）。背景：登入機制原本只擋「打 Worker API 的請求」，但 repo 是 public，圖片走 `raw.githubusercontent.com`、`GET /api/board`\|`recipes`\|`orders` 也不用登入，等於任何人知道網址就能完全繞過登入看光所有資料。修法分兩層，詳見下方「✅ 已完成：內容存取保護」完整章節 |
@@ -83,6 +84,74 @@
 搬完之後把 `data/`、`images/` 從舊 public repo 的**目前檔案**裡刪掉（`git rm` + commit + push），Worker 也確認 `raw.githubusercontent.com/frobel0520/Family/main/data/board.json` 打不到了（404）。
 
 **已知殘留、風險低**：舊 public repo 在這次清除**之前**的 git commit 歷史裡，還留著家人資料的舊版本（GitHub 網頁上目前檔案列表已經看不到，但翻歷史 commit 還能挖到）。真的要斷根需要把這個 repo整個刪掉重建（不可逆操作，需要使用者另外確認才會做，見下方「下一步」）。這個 repo 從來沒被分享過連結、沒有被搜尋引擎索引，現況風險非常低。
+
+---
+
+## ✅ 已完成：貼文／留言多張附圖（2026-07-25，尚未部署）
+
+原本發文/留言只能附「一張」圖，改成一次可以選多張（上限 9 張，前後端都擋）。
+
+**資料格式**：`BoardPost`/`BoardComment` 新增 `imagePaths: string[]`，舊資料的單張 `imagePath` 保留不動，讀取時由 `imagePathsOf()` 攤成陣列（所以舊貼文完全不用轉檔）。回前端的欄位是 `imageUrls: string[]`（每張都各自簽章）；另外仍回傳 `imageUrl` = 第一張，只是為了相容還沒重新載入的舊前端 bundle，新前端只看 `imageUrls`。
+
+**檔名**：`images/board/<postId>-<n>.jpg`、`images/board/comments/<commentId>-<n>.jpg`（n 從 1 開始）。上傳仍是「先傳完所有圖才寫 board.json」，任何一張失敗就整篇/整則不送出。**一張圖一個 commit**（GitHub Contents API 沒有批次寫；9 張圖 = 9 個 commit，家庭規模可接受）。
+
+**前端**（`Board.tsx`）：`attachedImages: string[]` / `commentImages: Record<string, string[]>`，file input 加 `multiple`，可以分幾次選（按鈕顯示「再加圖片（n/9）」），每張縮圖右上角 ✕ 可個別移除。貼文圖顯示改成格狀（1 張照原比例、2 張兩欄、3 張以上三欄，`.board-post-images.count-1/2/3`）。燈箱改成 `viewing: { urls, index }`，多張圖時有左右箭頭＋「n / N」計數，鍵盤 ←/→ 翻頁、Esc 關閉。
+
+**注意**：多張圖是**一個 request 送 base64 陣列**（9 張 1280px JPEG 大約 3 MB），家用流量沒問題，但如果之後要放寬張數上限就得改成逐張上傳。
+
+typecheck / build / worker vitest 都過，**還沒部署**（Worker 要 `wrangler deploy`，前端 push 到 main 由 Actions 部署）。
+
+---
+
+## ✅ 已完成：食譜圖改成縮圖上傳 + 空間用量盤點（2026-07-25，尚未部署）
+
+討論多圖功能的空間成本時撈了 `Family-data` 的實際用量，發現真正的空間大戶不是佈告欄，是**食譜圖沒縮圖**：
+
+| 內容 | 檔數 | 總大小 | 平均 |
+|---|---|---|---|
+| 食譜圖（手寫食譜照） | 17 | **48.3 MB** | **2.9 MB** |
+| 菜色插畫 | 161 | 4.4 MB | 28 KB |
+| 佈告欄貼文/留言圖 | 20 | 4.0 MB | 204 KB |
+| `data/*.json` | 5 | 0.07 MB | — |
+
+repo 本體 GitHub 回報 53.6 MB，**其中 85% 來自 17 張食譜圖**——因為 `RecipeCard.tsx`（＋食譜／更換圖片）跟 `Recipes.tsx`（新增菜色時附食譜圖）用的是 `fileToDataUrl`（**原圖直傳、完全沒縮**），佈告欄那條路徑則一直有走 `fileToResizedJpegDataUrl`。160 道菜若都補上食譜照，照舊做法會是 ~460 MB。
+
+**修法**：三個 call site 全部改用 `fileToResizedJpegDataUrl(file, RECIPE_IMAGE_MAX_SIDE)`，`RECIPE_IMAGE_MAX_SIDE = 1600`（比貼文圖的 1280 大，手寫字要看得清楚）。預期一張 2.9 MB → ~400 KB。順手刪掉沒人用的 `fileToDataUrl`。**只影響之後新上傳的圖，已經在 repo 裡的 48 MB 不會變小**（見下面）。
+
+**空間天花板（給以後的自己）**：
+- GitHub repo 沒有硬配額，官方建議 1 GB 以內、5 GB 才會被關切；單檔 50 MB 警告 / 100 MB 擋掉。private repo 儲存不計費。
+- **git 空間有進無出**：刪貼文本來就沒刪圖檔（已知孤兒圖），就算刪了 blob 還在 commit 歷史裡。真要回收只能 `git filter-repo` 改寫歷史 + force push（對這個 repo 技術上可行，Worker 只走 API 不在乎歷史，但不可逆，現在規模不值得）。
+- `data/board.json` 現在 32.6 KB，Worker 讀它走 Contents API 的 **base64 JSON 路徑上限 1 MB**；哪天貼文累積接近就得改用 raw media type 讀。
+- 長期若照片變成主要內容，正解是把圖搬到 **Cloudflare R2**（10 GB 免費、egress 免費、刪除真的釋放空間）。因為圖片已收斂在 `/api/image`，改動範圍小：`putBase64File` → R2 put、`fetchRawFile` → R2 get，路徑字串不用動 + 一次性搬移。**目前不做**。
+
+---
+
+## ✅ 已完成：訂單列表顯示點餐人與時間（2026-07-25，尚未部署）
+
+原本訂單列表只有菜名（`data/orders.json` 連點餐人都沒存，只有 `createdAt` 但沒顯示），家人看不出來是誰點的。
+
+- `Order` 新增 `orderedBy`（顯示名稱，暱稱優先）／`orderedByEmail`／`avatar`，在 `POST /api/orders` 從 session 帶入（跟貼文/留言存快照的做法一致）。**舊訂單沒有這三個欄位 → 前端只顯示時間**，不用轉檔。
+- 前端訂單列表每一項改成兩行：菜名 + 小字的「頭像＋名字·時間」（`.order-item-body`／`.order-meta`）；刪除確認彈窗也會說是誰點的（同一道菜被兩個人點時比較不會刪錯）。
+- 時間格式從 `Board.tsx` 的區域函式抽成共用的 `frontend/src/formatTime.ts`（貼文/留言/訂單同一個格式）。
+- 刪除權限沒變（任何登入的家人都能刪，做完的菜手動清掉）。
+
+---
+
+## ✅ 已完成：記住登入（session 30 天 + 自動續期）（2026-07-25，尚未部署）
+
+**背景**：session TTL 原本寫死 24h（`routes/auth.ts` 的註解還寫「家人再登入一次就好」），實際使用起來就是**每天都要重新走一次 Google 登入**，使用者受不了。
+
+**做法**（沒有做「記住我」勾選框，一律記住；不想被記住就按登出）：
+- `SESSION_TTL_SECONDS` 從 24h 改成 **30 天**，並從 `routes/auth.ts`／`routes/profile.ts` 各自一份改成統一放在 `worker/src/session.ts` 匯出（之前是兩份重複的常數，改一邊會漏）。
+- 新端點 **`POST /api/auth/refresh`**（`handleAuthRefresh`）：拿一個**還沒過期**的 token 換一張新的（TTL 重新計算），回傳格式跟登入端點一致，前端直接餵給既有的 `applySessionResponse`。續期時會重新確認**存取權**（`access.ts` 新增純讀取的 `isStillApproved`——不能用 `checkAccess`，那個會把不在名單上的人塞進 pending 佇列，續期打它會產生垃圾申請）、**profile**（暱稱/大頭貼，所以續期不會讓顯示名稱倒退回 Google 名字）、**isOwner**。過期的 token 一律 401，只能重新登入，不然「有效期」等於沒意義。
+- 前端 `AuthContext`：session 多存一個 `refreshAt`（= 發出時間 + 24h，但不超過有效期一半），**開 App 時**與 **PWA 從背景切回前景時**（`visibilitychange`）檢查，過了就背景續期一次（`refreshing` ref 防連續觸發）。401/403 → 登出回登入頁；其他失敗（離線、後端還沒部署到有這個端點的版本）→ 什麼都不做保留現有 session，下次再試。
+- **舊 session 沒有 `refreshAt` 欄位 → 視為「該續期了」**，所以這版上線後家人開 App 會自動換到 30 天的長效 token，不用重新登入（前提是他手上那張 24h token 還沒過期）。
+
+**安全性取捨（重要）**：token 是無狀態 HS256 JWT，**簽出去就無法撤銷**。在 `/admin` 把某人移出 approved 之後，他手上還沒過期的 token 最多還能再用 30 天（續期會被 403 擋掉，所以到期就真的進不來）。想縮短這個空窗就把 `SESSION_TTL_SECONDS` 改小（例如 7 天，對「每天開 App 的人不用重登」完全沒差）；要立刻踢掉所有人只能換 `JWT_SECRET`（全家一起被登出）。真正可撤銷的做法是 refresh token 存 KV + 輪替，這次刻意沒做（家庭規模不值得）。
+
+**測試**：`worker/test/index.spec.ts` 加了「沒帶 token 打 refresh → 401」。成功續期的路徑沒辦法在 vitest 裡測（要真的 JWT_SECRET + 讀 GitHub 上的 access.json/profiles.json），要在部署後實測。
+
+**iOS 提醒**：從主畫面開啟的 PWA 不受 Safari「7 天沒互動清掉 script-writable storage」的限制，所以 localStorage 裡的 session 會留著；但如果家人是在 Safari 分頁裡用（沒加到主畫面），超過 7 天沒開就可能被清掉而需要重新登入——這不是這次改動能解決的，請家人用主畫面的 App。
 
 ---
 
@@ -163,6 +232,7 @@ Openverse 輪的技術備忘：匿名 API 限 20 次/分、200 次/天，搜尋�
 - wrangler 目前是 3.114.17（有 4.x 可升級，是 breaking change），npm audit 有幾個僅影響本地開發工具鏈的弱點，使用者說先不處理
 - 多人同時寫入衝突：v1 是「後寫入覆蓋」（沒有樂觀鎖），照規劃書就是預期行為
 - 「拒絕」申請只是從待審核移除，沒有黑名單機制，被拒絕的人還能再申請一次
+- session token 無法撤銷（無狀態 JWT）：把某人移出 approved 之後，他手上的 token 最多還能用到期（現在是 30 天），詳見「記住登入」章節的取捨說明
 - 審核不是即時推播通知，擁有者要自己打開 App 檢查「審核」分頁才會看到新申請
 - 圖片轉發連結（`/api/image?path=...&sig=...`）簽章沒有過期時間，只要連結流出去（例如截圖分享、被瀏覽器同步到別的裝置）就能一直看那張圖，不會因為時間久了自動失效——這是刻意的設計取捨（見「內容存取保護」章節），跟大部分雲端相簿的「知道連結就能看」是同一種模式，家庭規模可接受
 - 刪貼文/留言不會連動刪除 repo 裡的圖片檔（孤兒圖案），這些孤兒圖現在因為 `Family-data` 是 private repo，一樣不會被外部看到，只是白佔一點儲存空間
