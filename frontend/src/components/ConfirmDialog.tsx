@@ -1,13 +1,21 @@
 interface ConfirmDialogProps {
 	message: string;
 	confirmLabel?: string;
+	busyLabel?: string; // 執行中的按鈕文字；不是刪除的操作（例如「完成訂單」）要另外給
 	busy?: boolean;
 	onConfirm: () => void;
 	onCancel: () => void;
 }
 
 /** 刪除等破壞性操作前的確認彈窗，取代瀏覽器原生 window.confirm。 */
-export function ConfirmDialog({ message, confirmLabel = "刪除", busy, onConfirm, onCancel }: ConfirmDialogProps) {
+export function ConfirmDialog({
+	message,
+	confirmLabel = "刪除",
+	busyLabel = "刪除中…",
+	busy,
+	onConfirm,
+	onCancel,
+}: ConfirmDialogProps) {
 	return (
 		<div className="recipe-modal-backdrop" onClick={busy ? undefined : onCancel}>
 			<div className="confirm-dialog" onClick={(e) => e.stopPropagation()}>
@@ -17,7 +25,7 @@ export function ConfirmDialog({ message, confirmLabel = "刪除", busy, onConfir
 						取消
 					</button>
 					<button type="button" className="confirm-dialog-danger" onClick={onConfirm} disabled={busy}>
-						{busy ? "刪除中…" : confirmLabel}
+						{busy ? busyLabel : confirmLabel}
 					</button>
 				</div>
 			</div>
