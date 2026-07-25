@@ -6,6 +6,8 @@ import { RECIPE_CATEGORIES } from "../recipeCategories";
 import { RecipeCard, RecipeModal } from "../components/RecipeCard";
 import { Pager } from "../components/Pager";
 import { ConfirmDialog } from "../components/ConfirmDialog";
+import { Avatar } from "../components/Avatar";
+import { formatTime } from "../formatTime";
 
 const PAGE_SIZE = 10;
 
@@ -122,7 +124,20 @@ export function Orders() {
 							<ul>
 								{orders.map((order) => (
 									<li key={order.id} className="order-item">
-										<span>{order.dishName}</span>
+										<div className="order-item-body">
+											<span className="order-dish">{order.dishName}</span>
+											{/* 舊資料沒有 orderedBy，只顯示時間 */}
+											<span className="order-meta">
+												{order.orderedBy && (
+													<>
+														<Avatar name={order.orderedBy} avatar={order.avatar} />
+														<span className="order-by">{order.orderedBy}</span>
+														<span aria-hidden>·</span>
+													</>
+												)}
+												<span className="order-time">{formatTime(order.createdAt)}</span>
+											</span>
+										</div>
 										<button
 											type="button"
 											className="delete-x"
@@ -144,7 +159,11 @@ export function Orders() {
 
 			{pendingDelete && (
 				<ConfirmDialog
-					message={`確定要刪除「${pendingDelete.dishName}」這筆點菜嗎？`}
+					message={
+						pendingDelete.orderedBy
+							? `確定要刪除${pendingDelete.orderedBy}點的「${pendingDelete.dishName}」嗎？`
+							: `確定要刪除「${pendingDelete.dishName}」這筆點菜嗎？`
+					}
 					busy={deleting}
 					onConfirm={confirmDelete}
 					onCancel={() => setPendingDelete(null)}
