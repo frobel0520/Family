@@ -41,6 +41,9 @@ export interface Recipe {
 export interface Order {
 	id: string;
 	dishName: string;
+	orderedBy?: string; // 點的人（暱稱優先）；舊資料沒有，只顯示時間
+	orderedByEmail?: string;
+	avatar?: string;
 	createdAt: string;
 }
 

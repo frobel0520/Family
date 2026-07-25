@@ -12,6 +12,7 @@ import type { BoardComment, BoardPost } from "../types";
 import { Pager } from "../components/Pager";
 import { Avatar } from "../components/Avatar";
 import { ConfirmDialog } from "../components/ConfirmDialog";
+import { formatTime } from "../formatTime";
 
 const PAGE_SIZE = 5;
 // 超過這個數字才收合；收合時只露出最新的 COLLAPSED_VISIBLE_COUNT 則（像 Facebook）
@@ -19,10 +20,6 @@ const COLLAPSE_THRESHOLD = 3;
 const COLLAPSED_VISIBLE_COUNT = 2;
 // 一則貼文/留言最多幾張圖（Worker 端也會擋，這裡是為了先給使用者提示）
 const MAX_IMAGES = 9;
-
-function formatTime(iso: string): string {
-	return new Date(iso).toLocaleString("zh-TW", { dateStyle: "short", timeStyle: "short" });
-}
 
 type PendingDelete =
 	| { kind: "post"; post: BoardPost }
