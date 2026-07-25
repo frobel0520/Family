@@ -23,11 +23,11 @@ function authHeaders(token: string): HeadersInit {
 
 export const listBoardPosts = (token: string) => request<BoardPost[]>("/api/board", { headers: authHeaders(token) });
 
-export const createBoardPost = (token: string, content: string, imageBase64?: string) =>
+export const createBoardPost = (token: string, content: string, imagesBase64?: string[]) =>
 	request<BoardPost>("/api/board", {
 		method: "POST",
 		headers: authHeaders(token),
-		body: JSON.stringify({ content, ...(imageBase64 ? { imageBase64 } : {}) }),
+		body: JSON.stringify({ content, ...(imagesBase64?.length ? { imagesBase64 } : {}) }),
 	});
 
 export const deleteBoardPost = (token: string, id: string) =>
@@ -37,11 +37,11 @@ export const deleteBoardPost = (token: string, id: string) =>
 		body: JSON.stringify({ id }),
 	});
 
-export const createBoardComment = (token: string, postId: string, content: string, imageBase64?: string) =>
+export const createBoardComment = (token: string, postId: string, content: string, imagesBase64?: string[]) =>
 	request<BoardComment>("/api/board/comment", {
 		method: "POST",
 		headers: authHeaders(token),
-		body: JSON.stringify({ postId, content, ...(imageBase64 ? { imageBase64 } : {}) }),
+		body: JSON.stringify({ postId, content, ...(imagesBase64?.length ? { imagesBase64 } : {}) }),
 	});
 
 export const deleteBoardComment = (token: string, postId: string, commentId: string) =>
