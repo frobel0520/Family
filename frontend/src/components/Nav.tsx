@@ -1,5 +1,6 @@
 import { NavLink } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
+import { Avatar } from "./Avatar";
 
 const TABS = [
 	{ to: "/", icon: "🏠", label: "首頁", end: true },
@@ -20,7 +21,7 @@ export function Nav() {
 				<div className="nav-auth">
 					{session ? (
 						<>
-							<img src={session.avatar} alt={session.name} className="nav-avatar" />
+							<Avatar name={session.name} avatar={session.avatar} className="nav-avatar" />
 							<span className="username">{session.name}</span>
 							<button type="button" className="logout" onClick={logout}>
 								登出

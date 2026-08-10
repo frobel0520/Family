@@ -94,6 +94,8 @@ function ProfileSection() {
 	}
 
 	const usingCustomAvatar = !!profile?.customAvatarUrl;
+	const currentAvatar = profile?.customAvatarUrl ?? profile?.googleAvatar ?? session.avatar;
+	const currentName = profile?.nickname?.trim() || profile?.googleName || session.name;
 
 	return (
 		<section className="install-section">
@@ -101,7 +103,7 @@ function ProfileSection() {
 			{loadError && <p className="error">載入失敗：{loadError}</p>}
 
 			<div className="profile-avatar-row">
-				<Avatar name={session.name} avatar={session.avatar} />
+				<Avatar name={currentName} avatar={currentAvatar} />
 				<div className="profile-avatar-actions">
 					<button type="button" disabled={saving} onClick={() => fileInput.current?.click()}>
 						📷 上傳照片
