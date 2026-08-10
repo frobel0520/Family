@@ -221,6 +221,26 @@ Openverse 輪的技術備忘：匿名 API 限 20 次/分、200 次/天，搜尋�
 
 最後 6 道（炒菇類、滷虱目魚、香煎雞胸肉、水煮雞胸肉、韮菜炒鴨血、蜂蜜檸檬汁）三輪都找不到像樣的圖，改用**自製扁平風 SVG 插畫**（手寫 SVG → svglib 轉 800x800 JPG，原創作品無版權問題、無 `photoCredit`）。之後**飲料類 14 道應使用者要求全數改為同套插畫**（開放圖庫的手搖飲照片品質參差，插畫反而整齊），產生器在使用者主觀偏好上是「同版型換配色＋配料」的做法，腳本邏輯記在 commit。**160/160 補圖完成**；家人實拍上傳會直接覆蓋。之後**飯類 22 道也改為插畫**（使用者確認插畫辨識度 OK，要求「食物置中放大」，可參考原照片理解菜色長相再畫；順帶把紅酒燉牛肉飯那張 CC BY-**ND**（禁改作）的照片換掉了——當初裁圖其實踩到 ND 條款，插畫化剛好解掉）。目前 119 照片 + 41 插畫，插畫產生器（`draw_dishes/draw_drinks/draw_rice.py` 的做法）：手寫 SVG 版型 + 每道菜配料組合，svglib 轉 800x800 JPG。
 
+## 2026-08-10 事故紀錄：Cloudflare workers.dev subdomain 換掉，全站 API 掛掉
+
+**症狀**：App 打得開（GitHub Pages 正常）但完全不能用，登入卡住。
+
+**原因**：Cloudflare 帳號的 workers.dev subdomain 從 `frobel0520` 變成 `curio-lab`，`family-app-worker.frobel0520.workers.dev` 直接 DNS NXDOMAIN。前端的 `VITE_API_BASE_URL`（GitHub repo variable，build 時寫進 bundle）還指著舊網址。Worker 本身一直是活的，只是那個網域不存在了。
+
+**修法**：`gh variable set VITE_API_BASE_URL https://family-app-worker.curio-lab.workers.dev` + 重跑 Pages workflow（這個變數是 build-time 的，不重新 build 不會生效）。`ALLOWED_ORIGIN` 不用動。
+
+**連帶災情**：`board.json`／`orders.json` 的貼文、留言、訂單把當下的大頭貼**完整網址**快照存進 `avatar` 欄位，host 一換，21 筆歷史紀錄的頭像全部指向死網域（瑜ㄐ 20 筆、茜茜 1 筆）。`profiles.json` 因為只存相對路徑 `avatarPath`，一筆都沒壞。
+
+**連帶災情的修法**（commit `c77a3f6`，選擇不回填資料，改成讀取時解析）：
+- `profiles.ts` 的 `avatarForStoredAuthor()`：讀清單時用 `authorEmail` 找當前 profile，有自訂頭貼就用**現算**的簽章網址覆蓋存檔裡的快照；找不到才退回舊快照。`board.ts`／`orders.ts` 的 list 端點都套用
+- `image-url.ts` 的 `storedAvatarUrl()`：順手把更早期存的 `raw.githubusercontent.com` 頭貼網址也升級成 `/api/image` 轉發連結
+- `Avatar.tsx` 加 `onError` fallback：圖載不出來就顯示名字首字，不會出現破圖 icon
+- 好處是資料一個字都不用改，而且以後 host 再變也不會重演。HMAC 簽章只簽 path 不含 host，所以換 host 不會讓舊簽章失效
+
+**留下的坑**：寫入端還是存絕對網址（`board.ts` 的 `avatar: auth.session.avatar`）。現在有讀取時覆蓋所以無害，但如果有人把頭貼切回 Google（`avatarPath` 變 `null`），他舊貼文裡那個死掉的 workers.dev 快照就沒東西能覆蓋了——`storedAvatarUrl()` 只認 `raw.githubusercontent.com`，不認舊的 workers.dev host。目前沒人踩到，最壞情況也只是顯示名字首字。
+
+**教訓**：Worker 改動不會被 GitHub Actions 部署（Actions 只管前端），一定要手動 `cd worker && npx wrangler deploy`，不然線上跑的還是舊邏輯。這次就差點漏掉。
+
 ## 下一步（依優先順序）
 
 0. **請家人實機測試 PWA**：iPhone 用 Safari 開網站 →「加入主畫面」→ 從主畫面開啟 → `/install` 頁開通知（iOS 16.4+ 才支援；**必須從主畫面開啟的 App 裡按，Safari 分頁裡按沒用**）。Android 用 Chrome 直接安裝即可
