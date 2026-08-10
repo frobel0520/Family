@@ -37,6 +37,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 	const [session, setSession] = useState<Session | null>(() => loadSession());
 	const refreshing = useRef(false); // 續期進行中，避免 visibilitychange 連續觸發時打好幾次
 
+	const syncedOnLaunch = useRef(false);
+
 	const login = useCallback(() => {
 		window.location.href = buildAuthorizeUrl();
 	}, []);
@@ -87,9 +89,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 	 * 其他失敗（離線、後端還沒部署到有這個端點的版本）→ 什麼都不做，保留現有 session 下次再試。
 	 */
 	const maybeRefresh = useCallback(
-		async (current: Session) => {
+		async (current: Session, force = false) => {
 			if (refreshing.current) return;
-			if (current.refreshAt && Date.now() < current.refreshAt) return;
+			if (!force && current.refreshAt && Date.now() < current.refreshAt) return;
 
 			refreshing.current = true;
 			try {
@@ -116,7 +118,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 	useEffect(() => {
 		const current = session;
 		if (!current) return;
-		void maybeRefresh(current);
+		const forceProfileSync = !syncedOnLaunch.current;
+		syncedOnLaunch.current = true;
+		void maybeRefresh(current, forceProfileSync);
 
 		// 用 const 箭頭函式而不是 function 宣告：hoisting 會讓 TS 看不到上面的 null 檢查
 		const onVisibilityChange = () => {

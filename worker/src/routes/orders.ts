@@ -2,6 +2,7 @@ import { requireSession } from "../session";
 import { readJsonArrayFile, updateJsonArrayFile } from "../github-contents";
 import { jsonResponse } from "../response";
 import { notifyAll } from "../notify";
+import { avatarForStoredAuthor, listProfiles } from "../profiles";
 
 interface Order {
 	id: string;
@@ -17,9 +18,23 @@ export async function handleListOrders(request: Request, env: Env): Promise<Resp
 	const auth = await requireSession(request, env);
 	if ("response" in auth) return auth.response;
 
-	const orders = await readJsonArrayFile<Order>(env, "data/orders.json");
+	const [orders, profiles] = await Promise.all([
+		readJsonArrayFile<Order>(env, "data/orders.json"),
+		listProfiles(env),
+	]);
 	orders.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-	return jsonResponse(orders);
+	return jsonResponse(
+		await Promise.all(
+			orders.map(async (order) => ({
+				...order,
+				avatar: (await avatarForStoredAuthor(request, env, profiles, {
+					authorEmail: order.orderedByEmail,
+					authorName: order.orderedBy,
+					avatar: order.avatar,
+				})) ?? undefined,
+			})),
+		),
+	);
 }
 
 export async function handleCreateOrder(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
