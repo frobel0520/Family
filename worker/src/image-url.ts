@@ -58,3 +58,25 @@ export async function imageProxyUrl(
 	const versionParam = version ? `&v=${encodeURIComponent(version)}` : "";
 	return `${origin}/api/image?path=${encodeURIComponent(path)}&sig=${sig}${versionParam}`;
 }
+
+/**
+ * 舊貼文／留言曾把 public repo 的 raw GitHub 頭貼網址直接存進 JSON。
+ * 資料 repo 改成 private 後那些網址會變成 404；讀取時把它們升級成目前的簽章 proxy URL。
+ * Google 等外部頭貼網址維持原樣。
+ */
+export async function storedAvatarUrl(request: Request, avatar: string | null | undefined, secret: string): Promise<string | null> {
+	if (!avatar) return null;
+
+	let url: URL;
+	try {
+		url = new URL(avatar);
+	} catch {
+		return avatar;
+	}
+
+	if (url.protocol !== "https:" || url.hostname !== "raw.githubusercontent.com") return avatar;
+	const match = url.pathname.match(/\/images\/avatars\/([A-Za-z0-9._-]+\.(?:jpe?g|png))$/i);
+	if (!match) return avatar;
+
+	return imageProxyUrl(request, `images/avatars/${match[1]}`, secret, url.searchParams.get("v"));
+}

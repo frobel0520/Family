@@ -1,5 +1,5 @@
 import { readJsonArrayFile, updateJsonArrayFile } from "./github-contents";
-import { imageProxyUrl } from "./image-url";
+import { imageProxyUrl, storedAvatarUrl } from "./image-url";
 
 /**
  * 個人資料（暱稱＋自訂大頭貼），存 data/profiles.json。
@@ -21,6 +21,25 @@ const PROFILES_PATH = "data/profiles.json";
 export async function getProfile(env: Env, email: string): Promise<Profile | null> {
 	const profiles = await readJsonArrayFile<Profile>(env, PROFILES_PATH);
 	return profiles.find((p) => p.email === email.toLowerCase()) ?? null;
+}
+
+export function listProfiles(env: Env): Promise<Profile[]> {
+	return readJsonArrayFile<Profile>(env, PROFILES_PATH);
+}
+
+/** 先用 email 精準比對；更舊的資料沒有 email 時，只接受唯一的相同暱稱，避免認錯人。 */
+export function findProfileForStoredAuthor(
+	profiles: Profile[],
+	authorEmail?: string,
+	authorName?: string,
+): Profile | null {
+	if (authorEmail) {
+		return profiles.find((profile) => profile.email === authorEmail.toLowerCase()) ?? null;
+	}
+	const normalizedName = authorName?.trim();
+	if (!normalizedName) return null;
+	const matches = profiles.filter((profile) => profile.nickname?.trim() === normalizedName);
+	return matches.length === 1 ? matches[0] : null;
 }
 
 export async function upsertProfile(
@@ -46,6 +65,21 @@ export async function upsertProfile(
 export async function avatarProxyUrl(request: Request, env: Env, profile: Profile): Promise<string | null> {
 	if (!profile.avatarPath) return null;
 	return imageProxyUrl(request, profile.avatarPath, env.JWT_SECRET, profile.avatarUpdatedAt);
+}
+
+/**
+ * 歷史資料可能沒有 avatar，或仍存著 private-repo 搬遷前的 raw URL。
+ * 有作者身分時優先使用目前 profile 的自訂頭貼，否則再修復／保留當年的快照。
+ */
+export async function avatarForStoredAuthor(
+	request: Request,
+	env: Env,
+	profiles: Profile[],
+	author: { authorEmail?: string; authorName?: string; avatar?: string },
+): Promise<string | null> {
+	const profile = findProfileForStoredAuthor(profiles, author.authorEmail, author.authorName);
+	const currentCustomAvatar = profile ? await avatarProxyUrl(request, env, profile) : null;
+	return currentCustomAvatar ?? storedAvatarUrl(request, author.avatar, env.JWT_SECRET);
 }
 
 /** 套用 profile：算出實際顯示的名稱與大頭貼。 */

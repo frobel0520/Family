@@ -3,6 +3,7 @@ import { readJsonArrayFile, updateJsonArrayFile, putBase64File } from "../github
 import { jsonResponse } from "../response";
 import { excerpt, notifyAll } from "../notify";
 import { imageProxyUrl } from "../image-url";
+import { avatarForStoredAuthor, listProfiles, type Profile } from "../profiles";
 
 /** 一則貼文/留言最多幾張圖（前端也擋一次，這裡是後端保險）。 */
 const MAX_IMAGES = 9;
@@ -54,6 +55,7 @@ async function withImageUrl(
 	request: Request,
 	env: Env,
 	post: BoardPost,
+	profiles: Profile[],
 ): Promise<
 	BoardPost & {
 		imageUrl: string | null;
@@ -62,15 +64,26 @@ async function withImageUrl(
 	}
 > {
 	const imageUrls = await imageUrlsOf(request, env, post);
+	const avatar = await avatarForStoredAuthor(request, env, profiles, {
+		authorEmail: post.authorEmail,
+		authorName: post.author,
+		avatar: post.avatar,
+	});
 	return {
 		...post,
+		avatar: avatar ?? undefined,
 		imageUrl: imageUrls[0] ?? null,
 		imageUrls,
 		comments: post.comments
 			? await Promise.all(
 					post.comments.map(async (c) => {
 						const commentUrls = await imageUrlsOf(request, env, c);
-						return { ...c, imageUrl: commentUrls[0] ?? null, imageUrls: commentUrls };
+						const commentAvatar = await avatarForStoredAuthor(request, env, profiles, {
+							authorEmail: c.authorEmail,
+							authorName: c.author,
+							avatar: c.avatar,
+						});
+						return { ...c, avatar: commentAvatar ?? undefined, imageUrl: commentUrls[0] ?? null, imageUrls: commentUrls };
 					}),
 				)
 			: undefined,
@@ -117,9 +130,12 @@ export async function handleListBoardPosts(request: Request, env: Env): Promise<
 	const auth = await requireSession(request, env);
 	if ("response" in auth) return auth.response;
 
-	const posts = await readJsonArrayFile<BoardPost>(env, "data/board.json");
+	const [posts, profiles] = await Promise.all([
+		readJsonArrayFile<BoardPost>(env, "data/board.json"),
+		listProfiles(env),
+	]);
 	posts.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-	return jsonResponse(await Promise.all(posts.map((p) => withImageUrl(request, env, p))));
+	return jsonResponse(await Promise.all(posts.map((p) => withImageUrl(request, env, p, profiles))));
 }
 
 export async function handleCreateBoardPost(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
@@ -183,7 +199,7 @@ export async function handleCreateBoardPost(request: Request, env: Env, ctx: Exe
 		),
 	);
 
-	return jsonResponse(await withImageUrl(request, env, newPost), 201);
+	return jsonResponse(await withImageUrl(request, env, newPost, await listProfiles(env)), 201);
 }
 
 /** 刪貼文：只有貼文本人或擁有者（isOwner）可以刪。 */
