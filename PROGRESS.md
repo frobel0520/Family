@@ -171,6 +171,24 @@ repo 本體 GitHub 回報 53.6 MB，**其中 85% 來自 17 張食譜圖**——�
 
 ---
 
+## ✅ 已完成：家庭行事曆 + 自訂提醒（2026-08-15，尚未部署）
+
+大家都能編輯的共用行事曆，活動可以指定**要提醒誰**、**什麼時候提醒**（使用者決定：提醒時間自己填絕對時間，不做「活動前 X 分鐘」；重複性活動 v1 不做）。
+
+- **資料 `data/events.json`**（Family-data private repo，同一套 GitHub Contents API）：`{ id, title, date, time?, note, createdBy, createdByEmail, remindEmails[], remindAt?, notifiedAt? }`。
+- **時間一律存台灣的牆上時間字串**（`2026-08-20` / `09:00` / `2026-08-20T08:00`），不存 UTC ISO——家人填的就是本地時間，存本地時間才不會因為 Worker 跑在哪個地區而位移；要比較先後時才在 `worker/src/events.ts` 補 `+08:00` 轉 epoch。台灣沒有日光節約時間，固定 offset 就夠。
+- **端點**：`GET/POST /api/events`、`POST /api/events/update`、`POST /api/events/delete`。**任何家人都能編輯與刪除**（使用者指定「大家都可以編輯」），不限建立者。改了提醒時間或對象會把 `notifiedAt` 清掉，改過的提醒才會重新送。
+- **新端點 `GET /api/family`**：已核准的家人名單（顯示名＋大頭貼），前端勾選提醒對象用。名單來自 `access.json` 的 approved（＋擁有者），顯示名依序取「暱稱 > 登入時記下的 Google 名字 > email 的 @ 前面」。
+  - 連帶改動：`profiles.json` 多存 `googleName`／`googleAvatar`，在**登入時**寫入且**只有值變了才寫**（不然每次登入都多一個 commit）。原因是 `approveEmail()` 核准後會把 pending 那筆（含名字）刪掉，之前系統裡**根本沒有地方存得住家人的名字**，只有 email。
+- **提醒＝Cloudflare Cron Trigger**（`wrangler.jsonc` 的 `triggers.crons`: `*/5 * * * *` + `index.ts` 的 `scheduled` handler）：每 5 分鐘掃一次，到期的用 `notifyEmail` **只推給該活動勾選的人**，推完寫 `notifiedAt` 防重複。代價是提醒最慢晚 5 分鐘送到。
+  - `dueReminders()` 有 **24 小時補送上限**：cron 若停掉幾天，恢復後不會把整週過期的提醒一次全部推出來洗版，超過就當過期不送。
+  - 沒開推播（沒把 App 加到主畫面 / 沒允許通知）的人**不會**收到提醒，這是 Web Push 的先天限制，行事曆上還是看得到活動。
+- **前端**：`pages/Calendar.tsx` + `components/MonthGrid.tsx`，月曆格（一格最多列 2 筆 + 「+N」）→ 點日期看當天清單 → 新增/編輯表單。提醒對象是家人頭像 chip 的 checkbox，**勾第一個人時自動把提醒時間預設成活動當天**（沒填時間就 09:00）。導覽列與首頁都加了 📅 行事曆入口。
+- **驗證**：`worker/test/events.spec.ts` 9 項（日期驗證含 2026-02-31、台灣時間換算、到期/已送/沒對象/補送上限、摘要與排序）；前端用 mock 資料在 375px 實測過——6 個 tab（擁有者）剛好不溢出（最後一個 tab 落在 367px），表單、活動卡片、月曆都沒有橫向捲動。
+- **未做**：重複性活動（每年生日、每週才藝班）、把活動同步到 Google 日曆、提醒前先問「要不要順延」。
+
+---
+
 ## 帳號 / 服務資訊
 
 - **GitHub repo（程式碼，public）**：https://github.com/frobel0520/Family

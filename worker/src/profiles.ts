@@ -13,6 +13,12 @@ export interface Profile {
 	nickname?: string | null;
 	avatarPath?: string | null; // repo 相對路徑（images/avatars/....jpg）；null/undefined = 用 Google 大頭貼
 	avatarUpdatedAt?: string; // 換圖時間，前端當快取破壞參數
+	/**
+	 * 登入時記下的 Google 名字／大頭貼。本來不需要（session 裡就有），
+	 * 但「列出全家人」時對方不一定在線上，沒有這份快照就只剩 email 可以顯示。
+	 */
+	googleName?: string;
+	googleAvatar?: string;
 	updatedAt: string;
 }
 
@@ -59,6 +65,24 @@ export async function upsertProfile(
 		return [...profiles.filter((p) => p.email !== normalized), result];
 	}, message);
 	return result;
+}
+
+/**
+ * 登入時把 Google 的名字/大頭貼記進 profile，給「列出全家人」當顯示名用。
+ * **只有在跟存檔的值不一樣時才寫**——不然每次登入都會多一個 commit。
+ */
+export async function rememberGoogleIdentity(
+	env: Env,
+	user: { email: string; name: string; avatar: string },
+): Promise<void> {
+	const profile = await getProfile(env, user.email);
+	if (profile?.googleName === user.name && profile?.googleAvatar === user.avatar) return;
+	await upsertProfile(
+		env,
+		user.email,
+		(current) => ({ ...current, googleName: user.name, googleAvatar: user.avatar }),
+		`profile: 記下 ${user.email.toLowerCase()} 的 Google 名稱`,
+	);
 }
 
 /** 大頭貼的簽章轉發網址（repo 是 private，不能再直接連 raw.githubusercontent.com；見 image-url.ts）。 */
