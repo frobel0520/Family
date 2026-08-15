@@ -7,10 +7,12 @@ import {
 	deleteBoardComment,
 	deleteBoardPost,
 	listBoardPosts,
+	toggleBoardReaction,
 } from "../api";
 import type { BoardComment, BoardPost } from "../types";
 import { Pager } from "../components/Pager";
 import { Avatar } from "../components/Avatar";
+import { Reactions, applyLocalToggle } from "../components/Reactions";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { formatTime } from "../formatTime";
 
@@ -45,6 +47,7 @@ export function Board() {
 	const [attachedImages, setAttachedImages] = useState<string[]>([]); // data URLs
 	const [viewing, setViewing] = useState<ViewingImages | null>(null); // 點圖放大
 	const [expandedComments, setExpandedComments] = useState<Set<string>>(new Set());
+	const [reactingId, setReactingId] = useState<string | null>(null);
 	const fileInput = useRef<HTMLInputElement>(null);
 	const commentFileInputs = useRef<Record<string, HTMLInputElement | null>>({});
 
@@ -173,6 +176,26 @@ export function Board() {
 			setSubmitError((err as Error).message);
 		} finally {
 			setCommentingId(null);
+		}
+	}
+
+	/** 先在本機套用（按下去要有立即反應），送出後用伺服器的結果覆蓋；失敗就還原。 */
+	async function handleToggleReaction(post: BoardPost, emoji: string) {
+		if (!session) return;
+		const before = post.reactions ?? [];
+		const setReactions = (reactions: BoardPost["reactions"]) =>
+			setPosts((prev) => prev.map((p) => (p.id === post.id ? { ...p, reactions } : p)));
+
+		setReactions(applyLocalToggle(before, emoji, session.name));
+		setReactingId(post.id);
+		try {
+			const { reactions } = await toggleBoardReaction(session.token, post.id, emoji);
+			setReactions(reactions);
+		} catch (err) {
+			setReactions(before);
+			setSubmitError((err as Error).message);
+		} finally {
+			setReactingId(null);
 		}
 	}
 
@@ -306,6 +329,11 @@ export function Board() {
 									))}
 								</div>
 							)}
+							<Reactions
+								reactions={post.reactions ?? []}
+								busy={reactingId === post.id}
+								onToggle={(emoji) => void handleToggleReaction(post, emoji)}
+							/>
 							{canDelete(post) && (
 								<button
 									type="button"

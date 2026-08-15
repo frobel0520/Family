@@ -6,6 +6,7 @@ import {
 	handleDeleteBoardPost,
 	handleCreateBoardComment,
 	handleDeleteBoardComment,
+	handleToggleBoardReaction,
 } from "./routes/board";
 import { handleListRecipes, handleCreateRecipe, handleUploadRecipeImage } from "./routes/recipes";
 import { handleListOrders, handleCreateOrder, handleDeleteOrder } from "./routes/orders";
@@ -41,6 +42,10 @@ async function route(request: Request, env: Env, ctx: ExecutionContext): Promise
 
 	if (request.method === "POST" && url.pathname === "/api/board/delete") {
 		return handleDeleteBoardPost(request, env);
+	}
+
+	if (request.method === "POST" && url.pathname === "/api/board/react") {
+		return handleToggleBoardReaction(request, env, ctx);
 	}
 
 	if (request.method === "POST" && url.pathname === "/api/board/comment") {

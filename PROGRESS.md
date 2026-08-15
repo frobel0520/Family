@@ -157,6 +157,20 @@ repo 本體 GitHub 回報 53.6 MB，**其中 85% 來自 17 張食譜圖**——�
 
 ---
 
+## ✅ 已完成：貼文表情回應（2026-08-15，尚未部署）
+
+家人不見得每則貼文都想留言，但想給個反應。做法刻意最小：**不開新檔案**，回應存在 `data/board.json` 每則貼文的 `reactions` 陣列裡。
+
+- **規則跟 Facebook 一樣：一個人對一則貼文只有一個表情**（按同一個＝取消，按別的＝換掉）。所以資料是「一人一列」，不會有人連按十個洗版，前後端的 toggle 邏輯也只有一種。可選表情固定 5 個：👍 ❤️ 😂 😮 🙏（`worker/src/reactions.ts` 的 `REACTION_EMOJIS`，後端會擋不在清單裡的字串）。
+- **存的是 `{ emoji, email, name, createdAt }`**，`name` 只是當下的顯示名快照；讀取時用 `profiles.json` 的暱稱覆蓋（跟頭像那次事故同一個教訓：身分快照會過時，顯示時才解析）。回前端的是彙總 `{ emoji, count, names, mine }`，**email 不外流**。
+- 新端點 **`POST /api/board/react`**（`{ postId, emoji }`）。舊貼文沒有 `reactions` 欄位 → 一律當空陣列，不用轉檔。
+- **只通知貼文作者本人**（`notifyEmail`），不群發——一個 👍 吵全家人是不能接受的；取消回應不發通知。
+- 前端 `components/Reactions.tsx`：貼文下方一排（「☺＋」按鈕展開表情列 + 已有的表情統計 chip），`title`/`aria-label` 顯示按的人。**按下去先在本機算好結果再送出**（`applyLocalToggle`），因為一次寫入是一個 GitHub commit，等回應會有明顯延遲；失敗就還原並顯示錯誤。
+- 留言還沒有表情回應（只做貼文），需要的話再說。
+- 測試：`worker/test/reactions.spec.ts`（toggle 的三種情況、彙總順序、暱稱覆蓋、舊資料）。
+
+---
+
 ## 帳號 / 服務資訊
 
 - **GitHub repo（程式碼，public）**：https://github.com/frobel0520/Family
