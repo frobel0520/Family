@@ -169,6 +169,15 @@ repo 本體 GitHub 回報 53.6 MB，**其中 85% 來自 17 張食譜圖**——�
 - **只通知貼文作者本人**（`notifyEmail`），不群發——一個 👍 吵全家人是不能接受的；取消回應不發通知。
 - 前端 `components/Reactions.tsx`：貼文下方一排（「☺＋」按鈕展開表情列 + 已有的表情統計 chip），`title`/`aria-label` 顯示按的人。**按下去先在本機算好結果再送出**（`applyLocalToggle`），因為一次寫入是一個 GitHub commit，等回應會有明顯延遲；失敗就還原並顯示錯誤。
 - 留言還沒有表情回應（只做貼文），需要的話再說。
+
+**2026-08-15 追加：改成完整表情面板**（使用者要求「像一般傳訊息那樣有一堆表情可以選」）
+
+- 快捷列仍是那 5 個常用表情，最後多一顆「⋯」打開完整面板（`emoji-picker-element` 1.29.1 + `emoji-picker-element-data` 1.8.0 的 `zh-hant/cldr` 資料）。
+- **後端不再是白名單**：`isReactionEmoji()` 改成驗證「是不是單一 emoji」，優先用 `\p{RGI_Emoji}`（ES2024 v flag，workerd 支援，國旗🇹🇼／膚色👍🏽／家庭👨‍👩‍👧‍👦／1️⃣ 都過），環境不支援時退回較寬鬆的樣式；長度上限 40。`REACTION_EMOJIS` 從「可選清單」降級成「顯示排序」，不在清單裡的表情排在後面。
+- **表情資料自己託管**：用 Vite 的 `?url` 匯入 `node_modules` 裡的 json，打包成 dist 的靜態資源（397KB／gz 72KB），不打 jsdelivr CDN。**面板與資料都是點開才載入**（`lazy` + 動態 `import`），主 bundle 只多了 0.7KB。
+- **`emojiVersion: 14` 寫死，刻意不用套件的自動偵測**：偵測靠 canvas 量測字型，在本機驗證用的瀏覽器會誤判成「完全不支援」，結果面板一個表情都不顯示。固定 14.0（iOS 15.4／Android 12 以上都認得）比較保險，代價是少了 2022 年後的新表情。
+- **搜尋框藏起來**（注入 shadow DOM 的 style）：套件的搜尋索引不切中文詞，實測 `getEmojiBySearchQuery("貓")` 回空陣列，只有拼音 shortcode（"xiao" → 😀😃…）搜得到。家人一定打中文，留著只會被當成壞掉；分類瀏覽與膚色選擇器不受影響。
+- **驗證**（mock 資料，沒碰正式站）：面板載入後第一類有 162 個表情、9 個分類標籤都是繁中，點表情確實送出 `POST /api/board/react` 並更新 chip；375px 下面板改成底部彈出（原本往上長會被畫面頂端裁掉），實測 345×320 落在 tab bar 上方且無橫向捲動。
 - 測試：`worker/test/reactions.spec.ts`（toggle 的三種情況、彙總順序、暱稱覆蓋、舊資料）。
 
 ---

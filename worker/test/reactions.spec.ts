@@ -1,9 +1,23 @@
 import { describe, expect, it } from "vitest";
-import { summarizeReactions, toggleReaction, type StoredReaction } from "../src/reactions";
+import { isReactionEmoji, summarizeReactions, toggleReaction, type StoredReaction } from "../src/reactions";
 import type { Profile } from "../src/profiles";
 
 const me = { email: "Yu@Example.com", name: "瑜ㄐ" };
 const hers: StoredReaction = { emoji: "❤️", email: "chien@example.com", name: "茜茜", createdAt: "2026-08-14" };
+
+describe("isReactionEmoji（2026-08-15 起改成「任何單一 emoji」，不再是白名單）", () => {
+	it("收下各種單一 emoji，包含膚色、ZWJ 組合、國旗、數字鍵盤", () => {
+		for (const emoji of ["👍", "❤️", "🥰", "👍🏽", "👨‍👩‍👧‍👦", "🇹🇼", "1️⃣", "🫶"]) {
+			expect([emoji, isReactionEmoji(emoji)]).toEqual([emoji, true]);
+		}
+	});
+
+	it("擋掉文字、多個表情、空字串與超長字串", () => {
+		for (const bad of ["", "讚", "a", "👍👍", "👍 ", "x".repeat(50), 123, null, undefined]) {
+			expect([String(bad), isReactionEmoji(bad)]).toEqual([String(bad), false]);
+		}
+	});
+});
 
 describe("toggleReaction", () => {
 	it("一人一則貼文只留一個表情：按別的會換掉，不是加一個", () => {

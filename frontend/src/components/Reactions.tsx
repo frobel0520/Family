@@ -1,8 +1,22 @@
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import type { ReactionSummary } from "../types";
 
-/** 可選的表情與顯示順序，跟 Worker 的 REACTION_EMOJIS 一致（後端也會驗證）。 */
+/**
+ * 快捷列的表情與**顯示排序**，跟 Worker 的 REACTION_EMOJIS 一致。
+ * 2026-08-15 起可以按的表情不限這五個（「更多」會打開完整面板），這裡只是常用的排前面。
+ */
 const REACTION_EMOJIS = ["👍", "❤️", "😂", "😮", "🙏"];
+
+// 完整表情面板連同 400KB 表情資料都是點開才載入，不進主 bundle
+const EmojiPicker = lazy(() =>
+	import("./EmojiPicker").then((module) => ({ default: module.EmojiPicker })),
+);
+
+/** 排序：快捷列的五個照原順序排前面，其他表情照先後順序排在後面。 */
+function emojiOrder(emoji: string): number {
+	const index = REACTION_EMOJIS.indexOf(emoji);
+	return index === -1 ? REACTION_EMOJIS.length : index;
+}
 
 /**
  * 前端先自己算一次結果，按下去馬上有反應（一次寫入是一個 GitHub commit，等回應會有明顯延遲）。
@@ -25,7 +39,7 @@ export function applyLocalToggle(reactions: ReactionSummary[], emoji: string, my
 		? without.map((r) => (r.emoji === emoji ? { ...r, count: r.count + 1, names: [...r.names, myName], mine: true } : r))
 		: [...without, { emoji, count: 1, names: [myName], mine: true }];
 
-	return next.sort((a, b) => REACTION_EMOJIS.indexOf(a.emoji) - REACTION_EMOJIS.indexOf(b.emoji));
+	return next.sort((a, b) => emojiOrder(a.emoji) - emojiOrder(b.emoji));
 }
 
 interface Props {
@@ -40,11 +54,18 @@ interface Props {
  */
 export function Reactions({ reactions, busy, onToggle }: Props) {
 	const [pickerOpen, setPickerOpen] = useState(false);
+	const [fullPickerOpen, setFullPickerOpen] = useState(false);
 	const mine = reactions.find((r) => r.mine)?.emoji;
 
 	function pick(emoji: string) {
 		setPickerOpen(false);
+		setFullPickerOpen(false);
 		onToggle(emoji);
+	}
+
+	function toggleQuickRow() {
+		setFullPickerOpen(false);
+		setPickerOpen((open) => !open);
 	}
 
 	return (
@@ -53,9 +74,9 @@ export function Reactions({ reactions, busy, onToggle }: Props) {
 				type="button"
 				className={`reaction-add${pickerOpen ? " open" : ""}`}
 				aria-label={mine ? "換一個表情" : "加上表情"}
-				aria-expanded={pickerOpen}
+				aria-expanded={pickerOpen || fullPickerOpen}
 				disabled={busy}
-				onClick={() => setPickerOpen((open) => !open)}
+				onClick={toggleQuickRow}
 			>
 				{mine ?? "☺"}
 				<span className="reaction-add-plus">＋</span>
@@ -74,6 +95,29 @@ export function Reactions({ reactions, busy, onToggle }: Props) {
 							{emoji}
 						</button>
 					))}
+					{/* 常用的五個不夠用時，才載入完整表情面板 */}
+					<button
+						type="button"
+						className="reaction-picker-more"
+						aria-label="更多表情"
+						onClick={() => {
+							setPickerOpen(false);
+							setFullPickerOpen(true);
+						}}
+					>
+						⋯
+					</button>
+				</div>
+			)}
+
+			{fullPickerOpen && (
+				<div className="reaction-full-picker">
+					<Suspense fallback={<p className="hint">表情載入中…</p>}>
+						<EmojiPicker onPick={pick} />
+					</Suspense>
+					<button type="button" className="reaction-full-picker-close" onClick={() => setFullPickerOpen(false)}>
+						關閉
+					</button>
 				</div>
 			)}
 
