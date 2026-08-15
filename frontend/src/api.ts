@@ -1,4 +1,4 @@
-import type { BoardComment, BoardPost, Order, PendingRequest, Profile, Recipe } from "./types";
+import type { BoardComment, BoardPost, Order, PendingRequest, Profile, ReactionSummary, Recipe } from "./types";
 import type { SessionResponse } from "./auth/types";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL;
@@ -35,6 +35,14 @@ export const deleteBoardPost = (token: string, id: string) =>
 		method: "POST",
 		headers: authHeaders(token),
 		body: JSON.stringify({ id }),
+	});
+
+/** 按同一個表情 = 取消，按別的 = 換掉；回傳整則貼文最新的表情彙總。 */
+export const toggleBoardReaction = (token: string, postId: string, emoji: string) =>
+	request<{ reactions: ReactionSummary[] }>("/api/board/react", {
+		method: "POST",
+		headers: authHeaders(token),
+		body: JSON.stringify({ postId, emoji }),
 	});
 
 export const createBoardComment = (token: string, postId: string, content: string, imagesBase64?: string[]) =>

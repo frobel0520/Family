@@ -8,6 +8,14 @@ export interface BoardComment {
 	createdAt: string;
 }
 
+/** 表情回應彙總（Worker 算好的，不含 email）；同一個人一則貼文只會有一個表情。 */
+export interface ReactionSummary {
+	emoji: string;
+	count: number;
+	names: string[]; // 按了這個表情的人（暱稱優先）
+	mine: boolean; // 我按的就是這個
+}
+
 export interface BoardPost {
 	id: string;
 	author: string;
@@ -18,6 +26,7 @@ export interface BoardPost {
 	createdAt: string;
 	updatedAt: string;
 	comments?: BoardComment[];
+	reactions?: ReactionSummary[]; // 舊前端載到的舊回應可能沒有這欄，一律當空陣列
 }
 
 export interface Profile {

@@ -1,9 +1,16 @@
 import { requireSession } from "../session";
 import { readJsonArrayFile, updateJsonArrayFile, putBase64File } from "../github-contents";
 import { jsonResponse } from "../response";
-import { excerpt, notifyAll } from "../notify";
+import { excerpt, notifyAll, notifyEmail } from "../notify";
 import { imageProxyUrl } from "../image-url";
 import { avatarForStoredAuthor, listProfiles, type Profile } from "../profiles";
+import {
+	isReactionEmoji,
+	summarizeReactions,
+	toggleReaction,
+	type ReactionSummary,
+	type StoredReaction,
+} from "../reactions";
 
 /** 一則貼文/留言最多幾張圖（前端也擋一次，這裡是後端保險）。 */
 const MAX_IMAGES = 9;
@@ -30,6 +37,7 @@ interface BoardPost {
 	createdAt: string;
 	updatedAt: string;
 	comments?: BoardComment[];
+	reactions?: StoredReaction[]; // 表情回應（一人一列）；回前端時換成不含 email 的彙總
 }
 
 /** 舊資料只有單張 `imagePath`，新資料是 `imagePaths`；一律攤成陣列。 */
@@ -56,10 +64,12 @@ async function withImageUrl(
 	env: Env,
 	post: BoardPost,
 	profiles: Profile[],
+	viewerEmail?: string,
 ): Promise<
-	BoardPost & {
+	Omit<BoardPost, "reactions"> & {
 		imageUrl: string | null;
 		imageUrls: string[];
+		reactions: ReactionSummary[];
 		comments?: (BoardComment & { imageUrl: string | null; imageUrls: string[] })[];
 	}
 > {
@@ -74,6 +84,7 @@ async function withImageUrl(
 		avatar: avatar ?? undefined,
 		imageUrl: imageUrls[0] ?? null,
 		imageUrls,
+		reactions: summarizeReactions(post.reactions, profiles, viewerEmail),
 		comments: post.comments
 			? await Promise.all(
 					post.comments.map(async (c) => {
@@ -135,7 +146,9 @@ export async function handleListBoardPosts(request: Request, env: Env): Promise<
 		listProfiles(env),
 	]);
 	posts.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-	return jsonResponse(await Promise.all(posts.map((p) => withImageUrl(request, env, p, profiles))));
+	return jsonResponse(
+		await Promise.all(posts.map((p) => withImageUrl(request, env, p, profiles, auth.session.email))),
+	);
 }
 
 export async function handleCreateBoardPost(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
@@ -199,7 +212,7 @@ export async function handleCreateBoardPost(request: Request, env: Env, ctx: Exe
 		),
 	);
 
-	return jsonResponse(await withImageUrl(request, env, newPost, await listProfiles(env)), 201);
+	return jsonResponse(await withImageUrl(request, env, newPost, await listProfiles(env), auth.session.email), 201);
 }
 
 /** 刪貼文：只有貼文本人或擁有者（isOwner）可以刪。 */
@@ -308,6 +321,66 @@ export async function handleCreateBoardComment(request: Request, env: Env, ctx: 
 
 	const commentUrls = await imageUrlsOf(request, env, newComment);
 	return jsonResponse({ ...newComment, imageUrl: commentUrls[0] ?? null, imageUrls: commentUrls }, 201);
+}
+
+/**
+ * 按／取消表情回應。一人一則貼文只留一個表情（見 reactions.ts），所以這裡是 toggle 而不是新增。
+ * 只通知貼文作者本人（全家群發的話，一個 👍 就吵到所有人）。
+ */
+export async function handleToggleBoardReaction(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+	const auth = await requireSession(request, env);
+	if ("response" in auth) return auth.response;
+
+	let body: { postId?: string; emoji?: string };
+	try {
+		body = await request.json();
+	} catch {
+		return jsonResponse({ error: "Invalid JSON body" }, 400);
+	}
+	if (!body.postId || typeof body.postId !== "string") {
+		return jsonResponse({ error: "Missing 'postId'" }, 400);
+	}
+	if (!isReactionEmoji(body.emoji)) {
+		return jsonResponse({ error: "不支援的表情" }, 400);
+	}
+	const { postId, emoji } = body;
+
+	let target: BoardPost | null = null;
+	let updated: StoredReaction[] = [];
+	await updateJsonArrayFile<BoardPost>(
+		env,
+		"data/board.json",
+		(posts) =>
+			posts.map((p) => {
+				if (p.id !== postId) return p;
+				target = p;
+				updated = toggleReaction(p.reactions ?? [], emoji, {
+					email: auth.session.email,
+					name: auth.session.name,
+				});
+				return { ...p, reactions: updated };
+			}),
+		`board: reaction ${emoji} by ${auth.session.name}`,
+	);
+	if (!target) {
+		return jsonResponse({ error: "Post not found" }, 404);
+	}
+	const post: BoardPost = target;
+
+	const added = updated.some((r) => r.email === auth.session.email.toLowerCase() && r.emoji === emoji);
+	if (added && post.authorEmail && post.authorEmail !== auth.session.email.toLowerCase()) {
+		ctx.waitUntil(
+			notifyEmail(env, post.authorEmail, {
+				title: `${emoji} ${auth.session.name} 回應了你的貼文`,
+				body: post.content ? excerpt(post.content, 60) : "（照片貼文）",
+				url: "/Family/#/board",
+				tag: "board-reaction",
+				icon: auth.session.avatar,
+			}),
+		);
+	}
+
+	return jsonResponse({ reactions: summarizeReactions(updated, await listProfiles(env), auth.session.email) });
 }
 
 /** 刪留言：只有留言本人或擁有者（isOwner）可以刪。 */
