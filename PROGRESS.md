@@ -24,7 +24,7 @@
 | 留言附圖 + 留言收合 | ✅ 已完成並部署（2026-07-19）：留言比照貼文可附一張圖（同樣可以只有圖沒文字），存 `images/board/comments/<commentId>.jpg`，`BoardComment` 多 `imagePath`/`imageUrl`。留言區收合仿 Facebook：`Board.tsx` 的 `COLLAPSE_THRESHOLD=3`／`COLLAPSED_VISIBLE_COUNT=2`，超過 3 則只露出最新 2 則＋「查看全部 N 則留言」，點了才整串展開並可「收合留言」；剛送出留言後該貼文會自動展開（不然使用者會以為自己的留言消失了）。點留言圖也能放大（跟貼文圖共用同一個燈箱 state）。**2026-07-25 起留言同樣可以一次傳多張（上限 9 張）** |
 | 設定頁（`/settings`，原 `/install` 改名並保留舊路由） | ✅ 已完成並部署（2026-07-19）：三區塊＝👤 個人資料（暱稱＋大頭貼）、🔔 通知開關、📲 安裝教學。暱稱/自訂大頭貼存 `data/profiles.json`（key=email 小寫），大頭貼傳 `images/avatars/<sha256(email) 前 16 hex>.jpg`（前端 canvas 裁 256x256 JPEG 再上傳）。**登入時套用**（`routes/auth.ts` 讀 profile → JWT 的 name/avatar 就是生效值，發文留言點菜自動用暱稱）；JWT 另存 `googleName`/`googleAvatar` 供「清除暱稱／改回 Google 大頭貼」還原。`POST /api/profile` 會**重簽 session 回傳**，前端 `applySessionResponse` 即時套用不用重登。貼文/留言新增 `authorEmail` 欄位，刪除權限改用 email 比對（暱稱改名不影響），舊資料 fallback 名字比對 |
 | 推播通知（Web Push） | ✅ 已完成並部署（2026-07-19）：純 WebCrypto 實作 RFC 8291 aes128gcm 加密 + RFC 8292 VAPID（`worker/src/web-push.ts`，**有 vitest 測試對照 RFC 8291 附錄 A 官方向量**，不用 Node 專用的 npm web-push）。訂閱存 Cloudflare KV（binding `PUSH_SUBS`，id `4b6a850c...`，一台裝置一筆，key = `sub:<b64url endpoint>`，發送遇 404/410 自動清除失效訂閱）。VAPID 私鑰 = secret `VAPID_PRIVATE_JWK`，公鑰在 `wrangler.jsonc` vars + `frontend/src/push.ts` 各一份（**兩邊要一致**）。觸發點（都 `ctx.waitUntil` 背景送、排除觸發者本人）：新貼文/新留言→全員、點菜→全員、新登入申請→僅擁有者。前端開關在設定頁「🔔 通知」區塊。**通知外觀**（2026-07-19 補）：payload 帶 `tag`（board/orders/admin，同 tag 在 Android 摺疊成一則、SW 用 `getNotifications({tag})` 疊加「還有 N 則」計數）＋ `icon`（觸發者大頭貼當縮圖）；`public/badge.png` 是透明底白色小屋剪影（Android 狀態列 badge 必須單色透明底，彩色圖會變一片白）。**iOS 全部不適用**：通知圖示固定是 App 圖示、不能自訂縮圖，堆疊由系統自動做。**App 圖示紅點**（2026-07-20 補，家人反饋要求）：Badging API（`navigator.setAppBadge()`，不帶數字，單純一個點），`sw.js` 收到 push 就設、`notificationclick` 或前端 `main.tsx` 偵測到 App 開啟/切回前景就清掉。**只有 Android 支援**——iOS Safari 完全沒實作這個標準（跟 Web Push 不一樣，那個 iOS 有做），呼叫在 iOS 上安靜失敗，iPhone 家人只能靠推播通知本身，圖示不會有紅點。**2026-07-20 追加討論**：家人全部是 iPhone，問能不能做類似效果。研究結論：**PWA 在 iOS 上沒有任何辦法（不只紅點，任何形式）在主畫面圖示旁邊顯示標記**——WebKit 完全沒開放這個能力，不是技術難度問題，沒有 workaround。曾提出「在 App 內導覽列做未讀提示」當次優解（做到一半，程式碼已還原、沒有留在專案裡），但使用者要的明確是「圖示旁邊」，這個退而求其次的方案不符合需求，故不採用。**真正能做到的唯一路徑是包成原生 App**（例如用 Capacitor 包現有網頁），代價是要加入 Apple Developer Program（US$99/年）＋ TestFlight／App Store 上架＋家人要重新安裝——這正是當初選 PWA 想避開的成本，使用者確認**不做**，維持現在的 PWA 版本。iPhone 家人的新內容提醒目前只能靠推播通知本身（鎖屏/通知中心），圖示旁邊沒有標記是已知且不會解決的限制 |
-| 佈告欄「表情回應」 | ✅ 已完成並部署（2026-08-15）：貼文下方 👍 ❤️ 😂 😮 🙏，一人一則貼文只有一個表情（按同一個＝取消、按別的＝換掉），存在 `board.json` 每則貼文的 `reactions` 陣列，只通知貼文作者本人。詳見下方「貼文表情回應」章節 |
+| 佈告欄「表情回應」 | ✅ 已完成並部署（2026-08-15，同日追加完整表情面板）：貼文下方快捷列 👍 ❤️ 😂 😮 🙏＋「⋯」開啟完整表情面板（任何單一 emoji 都能按），一人一則貼文只有一個表情（按同一個＝取消、按別的＝換掉），存在 `board.json` 每則貼文的 `reactions` 陣列，只通知貼文作者本人。詳見下方「貼文表情回應」章節 |
 | **行事曆 + 提醒**（新分頁 `/calendar`） | ✅ 已完成並部署（2026-08-15）：大家都能編輯的共用行事曆，活動可勾選「要提醒誰」＋自己指定提醒時間，Cloudflare Cron Trigger 每 5 分鐘掃一次只推給被勾選的人。新增 `data/events.json` 與 `GET /api/family`（家人名單）。詳見下方「家庭行事曆 + 自訂提醒」章節 |
 | **隱私：所有內容只有登入的家人能看** | ✅ 已完成並部署（2026-07-20）。背景：登入機制原本只擋「打 Worker API 的請求」，但 repo 是 public，圖片走 `raw.githubusercontent.com`、`GET /api/board`\|`recipes`\|`orders` 也不用登入，等於任何人知道網址就能完全繞過登入看光所有資料。修法分兩層，詳見下方「✅ 已完成：內容存取保護」完整章節 |
 
@@ -163,14 +163,14 @@ repo 本體 GitHub 回報 53.6 MB，**其中 85% 來自 17 張食譜圖**——�
 
 家人不見得每則貼文都想留言，但想給個反應。做法刻意最小：**不開新檔案**，回應存在 `data/board.json` 每則貼文的 `reactions` 陣列裡。
 
-- **規則跟 Facebook 一樣：一個人對一則貼文只有一個表情**（按同一個＝取消，按別的＝換掉）。所以資料是「一人一列」，不會有人連按十個洗版，前後端的 toggle 邏輯也只有一種。可選表情固定 5 個：👍 ❤️ 😂 😮 🙏（`worker/src/reactions.ts` 的 `REACTION_EMOJIS`，後端會擋不在清單裡的字串）。
+- **規則跟 Facebook 一樣：一個人對一則貼文只有一個表情**（按同一個＝取消，按別的＝換掉）。所以資料是「一人一列」，不會有人連按十個洗版，前後端的 toggle 邏輯也只有一種。**原本**可選表情固定 5 個：👍 ❤️ 😂 😮 🙏（`worker/src/reactions.ts` 的 `REACTION_EMOJIS`）——同日已改成完整表情面板，見本章節最後一段。
 - **存的是 `{ emoji, email, name, createdAt }`**，`name` 只是當下的顯示名快照；讀取時用 `profiles.json` 的暱稱覆蓋（跟頭像那次事故同一個教訓：身分快照會過時，顯示時才解析）。回前端的是彙總 `{ emoji, count, names, mine }`，**email 不外流**。
 - 新端點 **`POST /api/board/react`**（`{ postId, emoji }`）。舊貼文沒有 `reactions` 欄位 → 一律當空陣列，不用轉檔。
 - **只通知貼文作者本人**（`notifyEmail`），不群發——一個 👍 吵全家人是不能接受的；取消回應不發通知。
 - 前端 `components/Reactions.tsx`：貼文下方一排（「☺＋」按鈕展開表情列 + 已有的表情統計 chip），`title`/`aria-label` 顯示按的人。**按下去先在本機算好結果再送出**（`applyLocalToggle`），因為一次寫入是一個 GitHub commit，等回應會有明顯延遲；失敗就還原並顯示錯誤。
 - 留言還沒有表情回應（只做貼文），需要的話再說。
 
-**2026-08-15 追加：改成完整表情面板**（使用者要求「像一般傳訊息那樣有一堆表情可以選」）
+**2026-08-15 追加：改成完整表情面板（已部署）**（使用者要求「像一般傳訊息那樣有一堆表情可以選」）
 
 - 快捷列仍是那 5 個常用表情，最後多一顆「⋯」打開完整面板（`emoji-picker-element` 1.29.1 + `emoji-picker-element-data` 1.8.0 的 `zh-hant/cldr` 資料）。
 - **後端不再是白名單**：`isReactionEmoji()` 改成驗證「是不是單一 emoji」，優先用 `\p{RGI_Emoji}`（ES2024 v flag，workerd 支援，國旗🇹🇼／膚色👍🏽／家庭👨‍👩‍👧‍👦／1️⃣ 都過），環境不支援時退回較寬鬆的樣式；長度上限 40。`REACTION_EMOJIS` 從「可選清單」降級成「顯示排序」，不在清單裡的表情排在後面。
@@ -304,6 +304,8 @@ Openverse 輪的技術備忘：匿名 API 限 20 次/分、200 次/天，搜尋�
 - 圖片轉發連結（`/api/image?path=...&sig=...`）簽章沒有過期時間，只要連結流出去（例如截圖分享、被瀏覽器同步到別的裝置）就能一直看那張圖，不會因為時間久了自動失效——這是刻意的設計取捨（見「內容存取保護」章節），跟大部分雲端相簿的「知道連結就能看」是同一種模式，家庭規模可接受
 - 刪貼文/留言不會連動刪除 repo 裡的圖片檔（孤兒圖案），這些孤兒圖現在因為 `Family-data` 是 private repo，一樣不會被外部看到，只是白佔一點儲存空間
 - 舊 public repo（`frobel0520/Family`）2026-07-20 之前的 commit 歷史裡仍留有家人資料舊版本，見上方「下一步」第 0.5 項
+- 表情面板**沒有搜尋功能**（刻意隱藏）：套件的搜尋索引不切中文詞，打中文一定是空結果，只有拼音 shortcode 搜得到；靠 9 個分類瀏覽
+- 表情面板只到 **Emoji 14.0（2021）**：`emojiVersion` 寫死以避開套件偵測誤判成「完全不支援」而整片空白，代價是 2022 年後的新表情選不到（家人手機顯示得出來的舊表情都在）
 - 行事曆提醒**最慢會晚 5 分鐘**送到（cron 每 5 分鐘掃一次），而且**沒開推播的人收不到**（沒把 App 加到主畫面／沒允許通知）——行事曆上還是看得到活動
 - 行事曆提醒若因 cron 停擺遲超過 24 小時就**不補送**（`dueReminders` 的 grace window），避免恢復後一次推爆
 - 行事曆**沒有重複性活動**（每年生日要自己每年建一次），見「下一步」第 3 項
