@@ -5,6 +5,7 @@ import { AuthProvider } from "./auth/AuthContext";
 import { Layout } from "./components/Layout";
 import { Home } from "./pages/Home";
 import { Board } from "./pages/Board";
+import { Calendar } from "./pages/Calendar";
 import { Recipes } from "./pages/Recipes";
 import { Orders } from "./pages/Orders";
 import { Admin } from "./pages/Admin";
@@ -25,6 +26,7 @@ function App() {
 					<Routes>
 						<Route path="/" element={<Home />} />
 						<Route path="/board" element={<Board />} />
+						<Route path="/calendar" element={<Calendar />} />
 						<Route path="/recipes" element={<Recipes />} />
 						<Route path="/orders" element={<Orders />} />
 						<Route path="/admin" element={<Admin />} />

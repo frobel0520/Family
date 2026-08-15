@@ -8,6 +8,14 @@ import {
 	handleDeleteBoardComment,
 	handleToggleBoardReaction,
 } from "./routes/board";
+import {
+	handleListEvents,
+	handleCreateEvent,
+	handleUpdateEvent,
+	handleDeleteEvent,
+	runDueReminders,
+} from "./routes/calendar";
+import { handleListFamily } from "./routes/family";
 import { handleListRecipes, handleCreateRecipe, handleUploadRecipeImage } from "./routes/recipes";
 import { handleListOrders, handleCreateOrder, handleDeleteOrder } from "./routes/orders";
 import { handleListPending, handleApprove, handleDeny } from "./routes/admin";
@@ -54,6 +62,26 @@ async function route(request: Request, env: Env, ctx: ExecutionContext): Promise
 
 	if (request.method === "POST" && url.pathname === "/api/board/comment/delete") {
 		return handleDeleteBoardComment(request, env);
+	}
+
+	if (request.method === "GET" && url.pathname === "/api/events") {
+		return handleListEvents(request, env);
+	}
+
+	if (request.method === "POST" && url.pathname === "/api/events") {
+		return handleCreateEvent(request, env);
+	}
+
+	if (request.method === "POST" && url.pathname === "/api/events/update") {
+		return handleUpdateEvent(request, env);
+	}
+
+	if (request.method === "POST" && url.pathname === "/api/events/delete") {
+		return handleDeleteEvent(request, env);
+	}
+
+	if (request.method === "GET" && url.pathname === "/api/family") {
+		return handleListFamily(request, env);
 	}
 
 	if (request.method === "GET" && url.pathname === "/api/recipes") {
@@ -123,5 +151,10 @@ export default {
 
 		const response = await route(request, env, ctx);
 		return withCors(response, request, env);
+	},
+
+	/** Cron Trigger（wrangler.jsonc 的 triggers.crons）：行事曆的提醒推播。 */
+	async scheduled(_controller, env, ctx): Promise<void> {
+		ctx.waitUntil(runDueReminders(env));
 	},
 } satisfies ExportedHandler<Env>;

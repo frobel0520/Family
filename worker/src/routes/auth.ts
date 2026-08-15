@@ -3,7 +3,7 @@ import { signSession } from "../jwt";
 import { jsonResponse } from "../response";
 import { checkAccess, isOwner, isStillApproved } from "../access";
 import { notifyEmail } from "../notify";
-import { effectiveIdentity, getProfile } from "../profiles";
+import { effectiveIdentity, getProfile, rememberGoogleIdentity } from "../profiles";
 import { SESSION_TTL_SECONDS, requireSession } from "../session";
 
 export async function handleAuthCallback(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
@@ -49,6 +49,9 @@ export async function handleAuthCallback(request: Request, env: Env, ctx: Execut
 				: "已送出登入申請，請等待管理員同意。同意後請重新登入。";
 			return jsonResponse({ error: message, pending: true }, 403);
 		}
+
+		// 記下 Google 名字/大頭貼（只有變動時才寫），這樣「列出全家人」不用等對方上線
+		ctx.waitUntil(rememberGoogleIdentity(env, user));
 
 		// 套用個人資料（暱稱/自訂大頭貼）；沒設定就用 Google 的
 		const profile = await getProfile(env, user.email);
