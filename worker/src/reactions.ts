@@ -7,10 +7,33 @@ import { findProfileForStoredAuthor, type Profile } from "./profiles";
  * 這讓資料只需要「一人一列」，也不用擔心有人連按十個表情洗版。
  */
 
-/** 可選的表情與顯示順序（前端的按鈕列與後端驗證共用同一份定義）。 */
+/**
+ * 快捷列的表情與**顯示排序**。2026-08-15 起表情不再限這五個（前端改用完整的
+ * emoji 面板），這份清單只決定「常用的排前面」，不在清單裡的照樣可以按。
+ */
 export const REACTION_EMOJIS = ["👍", "❤️", "😂", "😮", "🙏"] as const;
 
-export type ReactionEmoji = (typeof REACTION_EMOJIS)[number];
+/** 任何單一 emoji 都可以，不再是白名單。 */
+export type ReactionEmoji = string;
+
+/**
+ * 單一 emoji 的驗證。優先用 `\p{RGI_Emoji}`（ES2024 的 v flag，能正確吃下
+ * 國旗、膚色、家庭這種多碼位組合）；執行環境不支援時退回較寬鬆的樣式。
+ * 重點是擋掉「一整串文字」被當成表情存進 board.json，不是要精挑細選哪些能按。
+ */
+const RGI_EMOJI = (() => {
+	try {
+		return new RegExp("^\\p{RGI_Emoji}$", "v");
+	} catch {
+		return null;
+	}
+})();
+
+const EMOJI_FALLBACK =
+	/^[\p{Extended_Pictographic}\p{Emoji_Presentation}](️|⃣|\p{Emoji_Modifier}|‍[\p{Extended_Pictographic}\p{Emoji_Presentation}])*$/u;
+
+/** 最長的 RGI 序列（家庭 emoji）約 11 個碼位，抓 40 當上限綽綽有餘。 */
+const MAX_EMOJI_LENGTH = 40;
 
 export interface StoredReaction {
 	emoji: string;
@@ -28,7 +51,8 @@ export interface ReactionSummary {
 }
 
 export function isReactionEmoji(value: unknown): value is ReactionEmoji {
-	return typeof value === "string" && (REACTION_EMOJIS as readonly string[]).includes(value);
+	if (typeof value !== "string" || value.length === 0 || value.length > MAX_EMOJI_LENGTH) return false;
+	return RGI_EMOJI ? RGI_EMOJI.test(value) : EMOJI_FALLBACK.test(value);
 }
 
 /** 按下表情：同一個再按一次是取消，按別的是換掉（一人只留一列）。 */
