@@ -19,6 +19,12 @@
 		"VAPID_PUBLIC_KEY": "BC76hqNkJ9FmeXE1FKBXmv0v45n8yUdBeFvqtgmXR9B4n89iITOmjcnIV0z5-q97DQA6ZI7TmWjNueL0RRzmW-o",
 		"VAPID_SUBJECT": "mailto:frobel0520@gmail.com",
 	},
+	// 行事曆提醒：每 5 分鐘掃一次 data/events.json，到期的推給該活動勾選的人
+	// （見 index.ts 的 scheduled handler / routes/calendar.ts 的 runDueReminders）。
+	// 代價是提醒最慢會晚 5 分鐘送到，家庭用途可接受。
+	"triggers": {
+		"crons": ["*/5 * * * *"],
+	},
 	// Web Push 訂閱資料（不放公開 repo，所以用 KV）
 	"kv_namespaces": [
 		{

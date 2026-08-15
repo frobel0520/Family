@@ -354,6 +354,272 @@
 	max-height: none;
 }
 
+/* ---------- 行事曆 ---------- */
+
+.calendar-toolbar {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	margin-bottom: 0.8rem;
+}
+
+.calendar-toolbar strong {
+	min-width: 8rem;
+	text-align: center;
+	color: var(--text-h);
+}
+
+.calendar-today-btn {
+	margin-left: auto;
+}
+
+.month-grid {
+	display: grid;
+	grid-template-columns: repeat(7, 1fr);
+	gap: 2px;
+	background: var(--border);
+	border: 1px solid var(--border);
+	border-radius: var(--radius);
+	overflow: hidden;
+}
+
+.month-weekday {
+	background: var(--card);
+	text-align: center;
+	font-size: 0.75rem;
+	color: var(--text-soft);
+	padding: 0.3rem 0;
+}
+
+.month-cell {
+	background: var(--card);
+	border: none;
+	min-height: 4.2rem;
+	padding: 0.2rem 0.25rem;
+	display: flex;
+	flex-direction: column;
+	align-items: stretch;
+	gap: 0.1rem;
+	font: inherit;
+	text-align: left;
+	cursor: pointer;
+}
+
+.month-cell.blank {
+	cursor: default;
+	background: var(--bg);
+}
+
+.month-cell-day {
+	font-size: 0.8rem;
+	color: var(--text-soft);
+}
+
+.month-cell.today .month-cell-day {
+	background: var(--accent);
+	color: var(--accent-text);
+	border-radius: 50%;
+	width: 1.4rem;
+	height: 1.4rem;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.month-cell.selected {
+	box-shadow: inset 0 0 0 2px var(--accent);
+}
+
+.month-cell-event {
+	font-size: 0.65rem;
+	line-height: 1.3;
+	padding: 0.05rem 0.25rem;
+	border-radius: 4px;
+	background: var(--accent-soft);
+	color: var(--accent);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.month-cell-more {
+	font-size: 0.6rem;
+	color: var(--text-soft);
+}
+
+.calendar-day {
+	margin-top: 1.2rem;
+}
+
+.calendar-day-header {
+	display: flex;
+	align-items: center;
+	gap: 0.6rem;
+	margin-bottom: 0.5rem;
+}
+
+.calendar-day-header h2 {
+	margin: 0;
+	font-size: 1.05rem;
+	display: flex;
+	align-items: center;
+	gap: 0.4rem;
+}
+
+.calendar-today-tag {
+	font-size: 0.7rem;
+	padding: 0.1rem 0.4rem;
+	border-radius: 999px;
+	background: var(--accent-soft);
+	color: var(--accent);
+}
+
+.calendar-day-header button {
+	margin-left: auto;
+}
+
+.calendar-event-list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+}
+
+.calendar-event {
+	position: relative;
+	display: flex;
+	gap: 0.6rem;
+	background: var(--card);
+	border: 1px solid var(--border);
+	border-radius: var(--radius);
+	box-shadow: var(--shadow);
+	padding: 0.7rem 0.85rem;
+}
+
+.calendar-event-time {
+	font-size: 0.85rem;
+	color: var(--accent);
+	font-weight: 700;
+	min-width: 3rem;
+}
+
+.calendar-event-body {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	gap: 0.2rem;
+	min-width: 0;
+}
+
+.calendar-event-body p {
+	margin: 0;
+	font-size: 0.85rem;
+	white-space: pre-wrap;
+}
+
+.calendar-event-remind,
+.calendar-event-author {
+	font-size: 0.75rem;
+	color: var(--text-soft);
+	display: flex;
+	align-items: center;
+	gap: 0.3rem;
+}
+
+.calendar-event-author .user-avatar {
+	width: 1.2rem;
+	height: 1.2rem;
+}
+
+.calendar-event-actions {
+	display: flex;
+	align-items: flex-start;
+	gap: 0.3rem;
+}
+
+.calendar-event-actions .delete-x {
+	position: static;
+}
+
+.calendar-form {
+	margin-top: 1.2rem;
+	display: flex;
+	flex-direction: column;
+	gap: 0.7rem;
+	background: var(--card);
+	border: 1px solid var(--border);
+	border-radius: var(--radius);
+	box-shadow: var(--shadow);
+	padding: 1rem;
+}
+
+.calendar-form h3 {
+	margin: 0;
+}
+
+.calendar-form label {
+	display: flex;
+	flex-direction: column;
+	gap: 0.25rem;
+	font-size: 0.8rem;
+	color: var(--text-soft);
+}
+
+.calendar-form-row {
+	display: flex;
+	gap: 0.6rem;
+}
+
+.calendar-form-row label {
+	flex: 1;
+}
+
+.calendar-remind {
+	border: 1px solid var(--border);
+	border-radius: 10px;
+	padding: 0.6rem 0.8rem;
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+}
+
+.calendar-remind legend {
+	font-size: 0.8rem;
+	color: var(--text-soft);
+	padding: 0 0.3rem;
+}
+
+.calendar-remind-people {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.4rem;
+}
+
+.calendar-remind-person {
+	flex-direction: row !important;
+	align-items: center;
+	gap: 0.35rem !important;
+	font-size: 0.85rem !important;
+	color: var(--text) !important;
+	border: 1px solid var(--border);
+	border-radius: 999px;
+	padding: 0.2rem 0.6rem 0.2rem 0.4rem;
+	cursor: pointer;
+}
+
+.calendar-remind-person .user-avatar {
+	width: 1.4rem;
+	height: 1.4rem;
+}
+
+.calendar-form-actions {
+	display: flex;
+	justify-content: flex-end;
+	gap: 0.5rem;
+}
+
 /* 表情回應：左邊是「加表情」按鈕（點了展開表情列），右邊是已經有的表情統計 */
 .reactions {
 	position: relative;

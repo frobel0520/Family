@@ -1,4 +1,14 @@
-import type { BoardComment, BoardPost, Order, PendingRequest, Profile, ReactionSummary, Recipe } from "./types";
+import type {
+	BoardComment,
+	BoardPost,
+	FamilyEvent,
+	FamilyMember,
+	Order,
+	PendingRequest,
+	Profile,
+	ReactionSummary,
+	Recipe,
+} from "./types";
 import type { SessionResponse } from "./auth/types";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL;
@@ -58,6 +68,42 @@ export const deleteBoardComment = (token: string, postId: string, commentId: str
 		headers: authHeaders(token),
 		body: JSON.stringify({ postId, commentId }),
 	});
+
+/** 行事曆。活動任何家人都能編輯/刪除（使用者要求「大家都可以編輯」）。 */
+export interface EventInput {
+	title: string;
+	date: string;
+	time: string | null;
+	note: string;
+	remindEmails: string[];
+	remindAt: string | null;
+}
+
+export const listEvents = (token: string) => request<FamilyEvent[]>("/api/events", { headers: authHeaders(token) });
+
+export const createEvent = (token: string, data: EventInput) =>
+	request<FamilyEvent>("/api/events", {
+		method: "POST",
+		headers: authHeaders(token),
+		body: JSON.stringify(data),
+	});
+
+export const updateEvent = (token: string, id: string, data: EventInput) =>
+	request<FamilyEvent>("/api/events/update", {
+		method: "POST",
+		headers: authHeaders(token),
+		body: JSON.stringify({ id, ...data }),
+	});
+
+export const deleteEvent = (token: string, id: string) =>
+	request<{ ok: true }>("/api/events/delete", {
+		method: "POST",
+		headers: authHeaders(token),
+		body: JSON.stringify({ id }),
+	});
+
+/** 已核准的家人名單（勾選提醒對象用）。 */
+export const listFamily = (token: string) => request<FamilyMember[]>("/api/family", { headers: authHeaders(token) });
 
 export const listRecipes = (token: string) => request<Recipe[]>("/api/recipes", { headers: authHeaders(token) });
 

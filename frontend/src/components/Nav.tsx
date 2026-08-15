@@ -5,6 +5,7 @@ import { Avatar } from "./Avatar";
 const TABS = [
 	{ to: "/", icon: "🏠", label: "首頁", end: true },
 	{ to: "/board", icon: "📌", label: "佈告欄" },
+	{ to: "/calendar", icon: "📅", label: "行事曆" },
 	{ to: "/recipes", icon: "🍳", label: "食譜" },
 	{ to: "/orders", icon: "🍽️", label: "點菜" },
 ];

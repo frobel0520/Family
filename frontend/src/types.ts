@@ -56,6 +56,30 @@ export interface Order {
 	createdAt: string;
 }
 
+/** 行事曆活動。日期/時間都是台灣時間的字串（後端也這樣存，見 worker/src/events.ts）。 */
+export interface FamilyEvent {
+	id: string;
+	title: string;
+	date: string; // YYYY-MM-DD
+	time?: string | null; // HH:mm；null = 整天
+	note?: string;
+	createdBy: string;
+	createdByEmail: string;
+	avatar?: string | null;
+	createdAt: string;
+	updatedAt: string;
+	remindEmails: string[]; // 要收到提醒的人（email）
+	remindAt?: string | null; // YYYY-MM-DDTHH:mm
+	notifiedAt?: string | null;
+}
+
+/** 已核准的家人（勾選提醒對象用）。 */
+export interface FamilyMember {
+	email: string;
+	name: string;
+	avatar: string | null;
+}
+
 export interface PendingRequest {
 	email: string;
 	name: string;

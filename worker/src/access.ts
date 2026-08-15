@@ -65,6 +65,13 @@ export async function isStillApproved(env: Env, email: string): Promise<boolean>
 	return state.approved.includes(email.toLowerCase());
 }
 
+/** 已核准的家人 email（含擁有者，永遠在名單上）。行事曆挑提醒對象用。 */
+export async function listApprovedEmails(env: Env): Promise<string[]> {
+	const owner = env.OWNER_EMAIL.toLowerCase();
+	const { approved } = await getAccessState(env);
+	return approved.includes(owner) ? approved : [owner, ...approved];
+}
+
 export async function listPending(env: Env): Promise<PendingRequest[]> {
 	return (await getAccessState(env)).pending;
 }
