@@ -689,6 +689,74 @@
 	background: var(--accent-soft);
 }
 
+/* 快捷列最後那顆「⋯」＝打開完整表情面板 */
+.reaction-picker-more {
+	border: none;
+	background: none;
+	border-radius: 50%;
+	padding: 0.2rem 0.4rem;
+	font-size: 1.1rem;
+	line-height: 1;
+	color: var(--text-soft);
+	cursor: pointer;
+}
+
+.reaction-picker-more:hover {
+	background: var(--accent-soft);
+	color: var(--accent);
+}
+
+/* 完整表情面板（emoji-picker-element，Shadow DOM，只能用它公開的 CSS 變數調色） */
+.reaction-full-picker {
+	position: absolute;
+	bottom: calc(100% + 0.3rem);
+	left: 0;
+	z-index: 6;
+	display: flex;
+	flex-direction: column;
+	align-items: flex-end;
+	gap: 0.2rem;
+}
+
+.reaction-full-picker emoji-picker {
+	width: min(20rem, 82vw);
+	height: 22rem;
+	border: 1px solid var(--border);
+	border-radius: var(--radius);
+	box-shadow: var(--shadow);
+	--background: var(--card);
+	--border-color: var(--border);
+	--indicator-color: var(--accent);
+	--input-border-color: var(--border);
+	--input-font-color: var(--text);
+	--button-active-background: var(--accent-soft);
+	--button-hover-background: var(--accent-soft);
+	--outline-color: var(--accent);
+}
+
+.reaction-full-picker-close {
+	font-size: 0.75rem;
+	padding: 0.15rem 0.6rem;
+}
+
+/* 手機：改成底部彈出的面板（像訊息 App）。原本往上長的浮層在靠近畫面
+   頂端的貼文會被裁掉，固定在底部就沒有這個問題，也比較好單手點。 */
+@media (max-width: 640px) {
+	.reaction-full-picker {
+		position: fixed;
+		left: 0;
+		right: 0;
+		bottom: 4.6rem; /* 讓開底部的 tab bar */
+		align-items: center;
+		gap: 0.3rem;
+	}
+
+	.reaction-full-picker emoji-picker {
+		width: min(22rem, 92vw);
+		height: min(20rem, 46vh);
+	}
+}
+
 .board-image-full {
 	max-width: 92vw;
 	max-height: 90vh;
