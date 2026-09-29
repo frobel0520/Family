@@ -1,6 +1,11 @@
+# 🏡 Family
+
+> A private household web app for sharing posts, recipes, orders and calendar events.
+
+## Overview
+
 <div align="center">
 
-# 🏡 Family
 
 A private, installable web app for a household to post updates, share recipes, order meals, and keep a shared calendar with push reminders — built with **zero traditional backend infrastructure**: no database, no VM, no container. Just a Cloudflare Worker, a GitHub repo used as a JSON data store, and a React PWA.
 
@@ -15,18 +20,7 @@ A private, installable web app for a household to post updates, share recipes, o
 
 ---
 
-## Why this exists
-
-Most "family app" side projects stop at a CRUD list. This one had to survive actual daily use by non-technical relatives on their phones — which forced real engineering problems that a toy project usually skips:
-
-- People needed to **log in with the Google account they already have**, not a GitHub account, not a new password.
-- The site needed to feel like an **app**, not a bookmarked webpage — installable, with its own icon, opening full-screen.
-- Family members expected **push notifications** the moment someone posts, the way any commercial app behaves.
-- Photos and posts are personal. Once real content was flowing in, "who can see this" stopped being theoretical and became a real access-control problem to solve properly, on a $0 budget.
-
-Each of those turned into a small, self-contained piece of infrastructure — described below — done without paying for a database, an email service, or a push notification provider.
-
-## Features
+## Main features and content
 
 | Area | What family members can do |
 |---|---|
@@ -38,6 +32,31 @@ Each of those turned into a small, self-contained piece of infrastructure — de
 | Admin (owner only) | Approve or deny new Google sign-ins |
 
 Sessions last 30 days and renew when the app opens. New posts, comments and orders notify everyone except the author; reactions notify only the post author; calendar reminders go only to the people ticked on the event.
+
+## Status and known limitations
+
+- iOS cannot show any badge next to a PWA's home-screen icon; iPhone users rely on the push notification itself. The icon dot works on Android only.
+- Calendar reminders can arrive up to 5 minutes late, and only reach people who installed the app and allowed notifications. Recurring events are not supported yet.
+- Concurrent writes are last-write-wins; sessions are stateless JWTs and cannot be revoked before they expire.
+
+Day-to-day status, decisions and incident notes (for example the 2026-08-10 `workers.dev` subdomain change) are in [`PROGRESS.md`](PROGRESS.md); the original plan is [`family-app-project-plan.md`](family-app-project-plan.md).
+
+## License and sources
+
+No license file is present in the repository root; this README does not declare reuse rights.
+
+---
+
+## Why this exists
+
+Most "family app" side projects stop at a CRUD list. This one had to survive actual daily use by non-technical relatives on their phones — which forced real engineering problems that a toy project usually skips:
+
+- People needed to **log in with the Google account they already have**, not a GitHub account, not a new password.
+- The site needed to feel like an **app**, not a bookmarked webpage — installable, with its own icon, opening full-screen.
+- Family members expected **push notifications** the moment someone posts, the way any commercial app behaves.
+- Photos and posts are personal. Once real content was flowing in, "who can see this" stopped being theoretical and became a real access-control problem to solve properly, on a $0 budget.
+
+Each of those turned into a small, self-contained piece of infrastructure — described below — done without paying for a database, an email service, or a push notification provider.
 
 ## Architecture
 
@@ -111,14 +130,6 @@ frontend/   React PWA — pages, components, auth context, push subscription log
 worker/     Cloudflare Worker — routes, GitHub Contents API client, JWT/session,
             Web Push crypto, image-signing, tests
 ```
-
-## Known limitations
-
-- iOS cannot show any badge next to a PWA's home-screen icon; iPhone users rely on the push notification itself. The icon dot works on Android only.
-- Calendar reminders can arrive up to 5 minutes late, and only reach people who installed the app and allowed notifications. Recurring events are not supported yet.
-- Concurrent writes are last-write-wins; sessions are stateless JWTs and cannot be revoked before they expire.
-
-Day-to-day status, decisions and incident notes (for example the 2026-08-10 `workers.dev` subdomain change) are in [`PROGRESS.md`](PROGRESS.md); the original plan is [`family-app-project-plan.md`](family-app-project-plan.md).
 
 ## Local development
 
