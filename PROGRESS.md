@@ -206,7 +206,7 @@ repo 本體 GitHub 回報 53.6 MB，**其中 85% 來自 17 張食譜圖**——�
 - **GitHub repo（程式碼，public）**：https://github.com/frobel0520/Family
 - **GitHub repo（資料/圖片，private，2026-07-20 起）**：https://github.com/frobel0520/Family-data
 - **GitHub Pages 網址**：https://frobel0520.github.io/Family/
-- **Cloudflare 帳號**：<redacted>（用 Google 登入）
+- **Cloudflare 帳號**：本人的 Google 帳號（用 Google 登入）
 - **Worker 網址**：https://family-app-worker.frobel0520.workers.dev
 - **Google OAuth Client**：已建立（Web application），redirect URIs 含正式站 + `localhost:5173`
 
