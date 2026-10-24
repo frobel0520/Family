@@ -1,27 +1,31 @@
 {
-	"name": "worker",
-	"version": "0.0.0",
-	"private": true,
-	"scripts": {
-		"deploy": "wrangler deploy",
-		"dev": "wrangler dev",
-		"start": "wrangler dev",
-		"test": "vitest",
-		"cf-typegen": "wrangler types"
-	},
-	"devDependencies": {
-		"@cloudflare/vitest-pool-workers": "^0.12.4",
-		"@cloudflare/workers-types": "^4.20260702.1",
-		"typescript": "^5.5.2",
-		"vitest": "~3.2.0",
-		"wrangler": "^3.101.0"
-	},
-	"allowScripts": {
-		"esbuild@0.27.3": true,
-		"esbuild@0.17.19": true,
-		"sharp@0.34.5": true,
-		"sharp@0.33.5": true,
-		"workerd@1.20260310.1": true,
-		"workerd@1.20250718.0": true
-	}
+  "name": "worker",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev",
+    "start": "wrangler dev",
+    "test": "vitest",
+    "cf-typegen": "wrangler types"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "5.20261019.1",
+    "typescript": "^5.5.2",
+    "vitest": "4.1.12",
+    "wrangler": "4.152.0",
+    "@cloudflare/vitest-plugin": "1.4.7"
+  },
+  "allowScripts": {
+    "esbuild@0.27.3": true,
+    "esbuild@0.17.19": true,
+    "sharp@0.34.5": true,
+    "sharp@0.33.5": true,
+    "workerd@1.20260310.1": true,
+    "workerd@1.20250718.0": true
+  },
+  "overrides": {
+    "undici@>=7 <8": "7.30.1",
+    "zod@>=4 <5": "4.6.7"
+  }
 }

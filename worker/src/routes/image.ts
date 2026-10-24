@@ -28,8 +28,8 @@ export async function handleImage(request: Request, env: Env): Promise<Response>
 	return new Response(upstream.body, {
 		headers: {
 			"Content-Type": contentTypeFor(path),
-			// 簽章連結本身就是存取憑證（不需要每次重驗），放心讓瀏覽器/CDN 快取。
-			"Cache-Control": "public, max-age=86400, immutable",
+			// 私人圖片不能透過 CDN／瀏覽器長期快取繞過連結到期。
+			"Cache-Control": "private, no-store",
 		},
 	});
 }

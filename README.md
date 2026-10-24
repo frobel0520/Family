@@ -31,7 +31,7 @@ A private, installable web app for a household to post updates, share recipes, o
 | Settings | Nickname and avatar, notification toggle, install guide for iOS and Android |
 | Admin (owner only) | Approve or deny new Google sign-ins |
 
-Sessions last 30 days and renew when the app opens. New posts, comments and orders notify everyone except the author; reactions notify only the post author; calendar reminders go only to the people ticked on the event.
+Sessions last 30 days and renew when the app opens. The pending security patch checks current approval on every protected data API request and fails closed when the approval source is unavailable. Image links expire after 24 hours; previously downloaded images cannot be revoked. This patch is not deployed. New posts, comments and orders notify everyone except the author; reactions notify only the post author; calendar reminders go only to the people ticked on the event.
 
 ## Status and known limitations
 

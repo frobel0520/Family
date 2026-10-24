@@ -1,7 +1,7 @@
 import { exchangeCodeForAccessToken, fetchGoogleUser, GoogleOAuthError } from "../google-oauth";
 import { signSession } from "../jwt";
 import { jsonResponse } from "../response";
-import { checkAccess, isOwner, isStillApproved } from "../access";
+import { checkAccess, isOwner } from "../access";
 import { notifyEmail } from "../notify";
 import { effectiveIdentity, getProfile, rememberGoogleIdentity } from "../profiles";
 import { SESSION_TTL_SECONDS, requireSession } from "../session";
@@ -91,7 +91,7 @@ export async function handleAuthCallback(request: Request, env: Env, ctx: Execut
  * 使用者在 30 天內開過 App 就不用再走一次 Google 登入。
  *
  * 續期時會重新確認：
- * - 存取權（被 /admin 移出 approved 的人續不到期 → 手上 token 到期後就進不來）
+ * - 存取權（requireSession 與其他受保護 API 一樣，立即重查 approved）
  * - 個人資料（暱稱/大頭貼，跟登入時同一條路徑，所以顯示名稱不會因為續期而倒退）
  * - isOwner
  *
@@ -105,9 +105,6 @@ export async function handleAuthRefresh(request: Request, env: Env): Promise<Res
 	if (!email) {
 		// 很舊的 token 沒有 email 欄位，沒辦法重新確認存取權 → 請他重新登入
 		return jsonResponse({ error: "請重新登入" }, 401);
-	}
-	if (!(await isStillApproved(env, email))) {
-		return jsonResponse({ error: "這個帳號的存取權已被移除，請聯絡管理員。" }, 403);
 	}
 
 	const profile = await getProfile(env, email);
