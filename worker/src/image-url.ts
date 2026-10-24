@@ -3,10 +3,9 @@
  * 改成簽章過的轉發連結：Worker 用 HMAC 簽 repo 相對路徑，/api/image 驗證簽章通過才把圖轉發出去
  * （見 routes/image.ts）。
  *
- * 簽章刻意不設過期時間（不像 session token 24h 就失效）——這樣貼文/留言存的大頭貼快照網址、
- * 已經發過的貼文圖片網址才能一直有效，不會因為原 po 主的 session 過期就變成一張壞圖。安全性
- * 靠的是「這個連結只會出現在登入後才拿得到的 API 回應裡」，不是靠連結本身的保密期限——跟一般
- * 「有連結的人都能看」的雲端相簿分享連結是同一種模式。
+ * v2 連結有效 24 小時，期限包含在 HMAC 簽章內；舊永久簽章不再接受。
+ * 每次已授權 API 讀取都重新簽發，包括歷史資料儲存的頭貼網址。
+ * 已取得的 bearer URL 在期限內仍可讀取，帳號撤銷不會撤回已下載的圖片。
  */
 
 function base64UrlEncode(bytes: Uint8Array): string {
@@ -27,9 +26,11 @@ async function signPath(message: string, secret: string): Promise<string> {
 	return base64UrlEncode(new Uint8Array(signature));
 }
 
-/** version 有帶就併入簽章訊息（跟 imageProxyUrl 用同一套規則），换圖後舊連結的簽章對不上，不會被拿來冒充新圖。 */
-function signedMessage(path: string, version?: string | null): string {
-	return version ? `${path}#${version}` : path;
+/** 圖片 capability 有效期；授權 API 回應會重新簽發。 */
+export const IMAGE_URL_TTL_SECONDS = 24 * 60 * 60;
+
+function signedMessage(path: string, version: string | null | undefined, expires: number): string {
+	return JSON.stringify(["family-image-v2", path, version || null, expires]);
 }
 
 export async function verifyPathSignature(
@@ -38,7 +39,15 @@ export async function verifyPathSignature(
 	sig: string,
 	secret: string,
 ): Promise<boolean> {
-	return (await signPath(signedMessage(path, version), secret)) === sig;
+	const match = /^v2\.(\d{1,12})\.([A-Za-z0-9_-]{43})$/.exec(sig);
+	if (!match) return false;
+	const expires = Number(match[1]);
+	const now = Math.floor(Date.now() / 1000);
+	if (!Number.isSafeInteger(expires) || expires <= now || expires > now + IMAGE_URL_TTL_SECONDS) return false;
+	const expected = await signPath(signedMessage(path, version, expires), secret);
+	let difference = 0;
+	for (let index = 0; index < expected.length; index++) difference |= expected.charCodeAt(index) ^ match[2].charCodeAt(index);
+	return difference === 0;
 }
 
 /**
@@ -53,7 +62,8 @@ export async function imageProxyUrl(
 	version?: string | null,
 ): Promise<string | null> {
 	if (!path) return null;
-	const sig = await signPath(signedMessage(path, version), secret);
+	const expires = Math.floor(Date.now() / 1000) + IMAGE_URL_TTL_SECONDS;
+	const sig = `v2.${expires}.${await signPath(signedMessage(path, version, expires), secret)}`;
 	const origin = new URL(request.url).origin;
 	const versionParam = version ? `&v=${encodeURIComponent(version)}` : "";
 	return `${origin}/api/image?path=${encodeURIComponent(path)}&sig=${sig}${versionParam}`;
@@ -72,6 +82,15 @@ export async function storedAvatarUrl(request: Request, avatar: string | null | 
 		url = new URL(avatar);
 	} catch {
 		return avatar;
+	}
+	// Persisted avatar URLs may be legacy permanent links or expired capabilities.
+	// Re-sign only the avatar namespace; the API already authenticated the viewer.
+	if (url.pathname === "/api/image") {
+		const imagePath = url.searchParams.get("path");
+		if (imagePath && /^images\/avatars\/[A-Za-z0-9._-]+\.(?:jpe?g|png)$/i.test(imagePath)) {
+			return imageProxyUrl(request, imagePath, secret, url.searchParams.get("v"));
+		}
+		return null;
 	}
 
 	if (url.protocol !== "https:" || url.hostname !== "raw.githubusercontent.com") return avatar;

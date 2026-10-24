@@ -1,20 +1,20 @@
 import { verifySession, type SessionPayload } from "./jwt";
 import { jsonResponse } from "./response";
+import { isOwner, isStillApproved } from "./access";
 
 /**
  * Session token 有效期。原本是 24h（家人每天都要重新用 Google 登入一次，被抱怨了），
  * 現在改成 30 天 + 前端會自動續期（`POST /api/auth/refresh`，見 routes/auth.ts）：
  * 只要 30 天內開過 App 就不用再登入。
  *
- * 代價：token 是無狀態的 HS256 JWT，**簽出去就沒辦法撤銷**。在 /admin 把某人從 approved
- * 移除後，他手上還沒過期的 token 最多還能用 30 天（續期會被擋，所以到期就真的進不來了）。
- * 要縮短這個空窗就把這個數字改小；要立刻踢掉所有人只能換 JWT_SECRET（全家一起被登出）。
+ * token 保留 30 天免重登，但每次受保護 API 呼叫都重查 approved 名單。
+ * 名單移除立即拒絕下一次 API 呼叫；GitHub 無法讀取時 fail closed。
  */
 export const SESSION_TTL_SECONDS = 60 * 60 * 24 * 30;
 
 /**
  * Reads the "Authorization: Bearer <token>" header and verifies it.
- * Returns the session payload on success, or a ready-to-return 401 Response on failure.
+ * Returns the currently authorized session, or a 401/403/503 Response on failure.
  */
 export async function requireSession(
 	request: Request,
@@ -27,10 +27,27 @@ export async function requireSession(
 		return { response: jsonResponse({ error: "Missing Authorization header" }, 401) };
 	}
 
-	const session = await verifySession(token, env.JWT_SECRET);
+	let session: SessionPayload | null;
+	try {
+		session = await verifySession(token, env.JWT_SECRET);
+	} catch {
+		return { response: jsonResponse({ error: "Invalid or expired session" }, 401) };
+	}
 	if (!session) {
 		return { response: jsonResponse({ error: "Invalid or expired session" }, 401) };
 	}
+	if (typeof session.email !== "string" || !session.email.trim()) {
+		return { response: jsonResponse({ error: "請重新登入" }, 401) };
+	}
+	try {
+		if (!(await isStillApproved(env, session.email))) {
+			return { response: jsonResponse({ error: "這個帳號的存取權已被移除，請聯絡管理員。" }, 403) };
+		}
+	} catch {
+		return { response: jsonResponse({ error: "暫時無法確認存取權，請稍後再試。" }, 503) };
+	}
+	// Owner privileges follow current server configuration, not an old token claim.
+	session = { ...session, isOwner: isOwner(env, session.email) };
 
 	return { session };
 }
