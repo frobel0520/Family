@@ -60,9 +60,9 @@
 
 ### 1. 圖片改走簽章轉發，不再直連 raw.githubusercontent.com
 
-新增 `worker/src/image-url.ts`：Worker 用 `JWT_SECRET` 對 repo 相對路徑做 HMAC 簽章，組出 `${origin}/api/image?path=...&sig=...`（大頭貼/食譜圖還會帶 `&v=<更新時間>` 當版本，換圖後簽章跟著變，不會被快取卡住看舊圖）。**簽章刻意不設過期時間**（不像 session token 24h 就失效）——這樣貼文/留言存的大頭貼快照網址才能一直有效，不會因為原 po 主的 session 過期就變成一張壞圖。安全性靠的是「這個連結只會出現在登入後才拿得到的 API 回應裡」，跟一般雲端相簿的分享連結是同一種模式（不是核對使用者身分，是核對連結本身有沒有被正確簽過）。
+新增 `worker/src/image-url.ts`：Worker 用 `JWT_SECRET` 對 repo 相對路徑做 HMAC 簽章，組出 `${origin}/api/image?path=...&sig=...`（大頭貼/食譜圖還會帶 `&v=<更新時間>` 當版本，換圖後簽章跟著變，不會被快取卡住看舊圖）。**2026-10-24 安全修正（尚未部署）**：圖片改為 v2 HMAC capability，有效 24 小時；path、版本與期限一起簽章。舊永久簽章拒絕，已登入的 API 回應會重簽圖片及歷史頭貼網址；頁面重新載入可取得新連結。
 
-`worker/src/routes/image.ts`（`GET /api/image`）驗證簽章＋路徑白名單（只允許 `images/recipes/`、`images/board/`、`images/avatars/` 三個資料夾，擋路徑逃逸），通過才用 `github-contents.ts` 新增的 `fetchRawFile`（`Accept: application/vnd.github.raw`，binary-safe，不像 `getFile` 那樣走 base64 解文字，圖片會爛掉）把圖轉發出去，`Cache-Control: public, max-age=86400, immutable`（簽章連結本身就是憑證，不需要每次重驗，可以放心快取）。
+`worker/src/routes/image.ts`（`GET /api/image`）驗證簽章＋路徑白名單（只允許 `images/recipes/`、`images/board/`、`images/avatars/` 三個資料夾，擋路徑逃逸），通過才用 `github-contents.ts` 新增的 `fetchRawFile`（`Accept: application/vnd.github.raw`，binary-safe，不像 `getFile` 那樣走 base64 解文字，圖片會爛掉）把圖轉發出去，`Cache-Control: private, no-store`，避免新的私人圖片回應進入共用快取。既有快取與已下載資料無法追回；已取得的 v2 連結在 24 小時內仍可使用。
 
 套用的地方：`board.ts`（貼文/留言圖）、`recipes.ts`（`photoUrl`/`recipeUrl`）、`profiles.ts` 的 `avatarProxyUrl`（大頭貼，`effectiveIdentity` 現在是 async，登入時 `routes/auth.ts` 要 `await`）。**有 vitest 測試**（`worker/test/image-url.spec.ts`）覆蓋簽章正確性、路徑/密鑰/版本被改動都要失敗。
 
@@ -152,7 +152,7 @@ repo 本體 GitHub 回報 53.6 MB，**其中 85% 來自 17 張食譜圖**——�
 - 前端 `AuthContext`：session 多存一個 `refreshAt`（= 發出時間 + 24h，但不超過有效期一半），**開 App 時**與 **PWA 從背景切回前景時**（`visibilitychange`）檢查，過了就背景續期一次（`refreshing` ref 防連續觸發）。401/403 → 登出回登入頁；其他失敗（離線、後端還沒部署到有這個端點的版本）→ 什麼都不做保留現有 session，下次再試。
 - **舊 session 沒有 `refreshAt` 欄位 → 視為「該續期了」**，所以這版上線後家人開 App 會自動換到 30 天的長效 token，不用重新登入（前提是他手上那張 24h token 還沒過期）。
 
-**安全性取捨（重要）**：token 是無狀態 HS256 JWT，**簽出去就無法撤銷**。在 `/admin` 把某人移出 approved 之後，他手上還沒過期的 token 最多還能再用 30 天（續期會被 403 擋掉，所以到期就真的進不來）。想縮短這個空窗就把 `SESSION_TTL_SECONDS` 改小（例如 7 天，對「每天開 App 的人不用重登」完全沒差）；要立刻踢掉所有人只能換 `JWT_SECRET`（全家一起被登出）。真正可撤銷的做法是 refresh token 存 KV + 輪替，這次刻意沒做（家庭規模不值得）。
+**2026-10-24 安全契約變更（尚未部署）**：保留 30 天 JWT 以維持免重登，但所有受保護資料 API 在驗證 JWT 後重查 approved，移除帳號後下一次呼叫回 403；上游讀取失敗回 503，不放行。owner 權限依當前設定重算。每次一般成員 API 多一次 GitHub 讀取，不新增付費服務或資料庫；正式額度與延遲須於發布前驗收。圖片 bearer URL 的 24 小時空窗另列，不能宣稱即時撤回圖片。
 
 **測試**：`worker/test/index.spec.ts` 加了「沒帶 token 打 refresh → 401」。成功續期的路徑沒辦法在 vitest 裡測（要真的 JWT_SECRET + 讀 GitHub 上的 access.json/profiles.json），要在部署後實測。
 
@@ -297,12 +297,12 @@ Openverse 輪的技術備忘：匿名 API 限 20 次/分、200 次/天，搜尋�
 
 ## 已知限制（暫不處理，非 bug）
 
-- wrangler 目前是 3.114.17（有 4.x 可升級，是 breaking change），npm audit 有幾個僅影響本地開發工具鏈的弱點，使用者說先不處理
+- 2026-10-24 已授權修補：Wrangler 升級 4.152.0，測試整合改用 @cloudflare/vitest-plugin 1.4.7 / Vitest 4.1.12；最終公開 npm audit 為 0。修補分支已驗證，尚未部署。
 - 多人同時寫入衝突：v1 是「後寫入覆蓋」（沒有樂觀鎖），照規劃書就是預期行為
 - 「拒絕」申請只是從待審核移除，沒有黑名單機制，被拒絕的人還能再申請一次
-- session token 無法撤銷（無狀態 JWT）：把某人移出 approved 之後，他手上的 token 最多還能用到期（現在是 30 天），詳見「記住登入」章節的取捨說明
+- 2026-10-24 修正尚未部署：受保護資料 API 重查 approved，移除名單立即拒絕下一次呼叫；JWT 本身仍保留 30 天，不能離線撤銷已取得資料。
 - 審核不是即時推播通知，擁有者要自己打開 App 檢查「審核」分頁才會看到新申請
-- 圖片轉發連結（`/api/image?path=...&sig=...`）簽章沒有過期時間，只要連結流出去（例如截圖分享、被瀏覽器同步到別的裝置）就能一直看那張圖，不會因為時間久了自動失效——這是刻意的設計取捨（見「內容存取保護」章節），跟大部分雲端相簿的「知道連結就能看」是同一種模式，家庭規模可接受
+- 2026-10-24 修正尚未部署：圖片 v2 連結有效 24 小時，舊永久簽章拒絕；新回應 private/no-store，既有快取和已下載圖片無法追回。
 - 刪貼文/留言不會連動刪除 repo 裡的圖片檔（孤兒圖案），這些孤兒圖現在因為 `Family-data` 是 private repo，一樣不會被外部看到，只是白佔一點儲存空間
 - 舊 public repo（`frobel0520/Family`）2026-07-20 之前的 commit 歷史裡仍留有家人資料舊版本，見上方「下一步」第 0.5 項
 - 表情面板**沒有搜尋功能**（刻意隱藏）：套件的搜尋索引不切中文詞，打中文一定是空結果，只有拼音 shortcode 搜得到；靠 9 個分類瀏覽
