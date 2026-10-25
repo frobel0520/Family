@@ -1,0 +1,203 @@
+{
+  "task": "SEC-P1-20261024",
+  "base": "52cba6f4d3801c0b693a1cd624b9b83343566528",
+  "goal": "Remove reviewed high/critical dependency exposures and repair authorized security boundaries",
+  "input": "Pinned remote base, lockfile, synthetic fixtures",
+  "output": "Focused source/dependency patch and this evidence",
+  "depends_on": [],
+  "out_of_scope": [
+    "deployment",
+    "real user data",
+    "history rewriting",
+    "unrelated refactors"
+  ],
+  "environment": {
+    "platform": "Windows x64",
+    "cpu": "12th Gen Intel(R) Core(TM) i7-12700KF",
+    "node": "24.22.1",
+    "installation": "npm ci --ignore-scripts --no-audit --no-fund",
+    "execution": "sequential projects; test workers <=2"
+  },
+  "audit": [
+    {
+      "app": "worker",
+      "counts": {
+        "info": 0,
+        "low": 0,
+        "moderate": 0,
+        "high": 0,
+        "critical": 0,
+        "total": 0
+      }
+    },
+    {
+      "app": "frontend",
+      "counts": {
+        "info": 0,
+        "low": 0,
+        "moderate": 0,
+        "high": 0,
+        "critical": 0,
+        "total": 0
+      }
+    }
+  ],
+  "changes": [
+    {
+      "app": "worker",
+      "section": "devDependencies",
+      "name": "@cloudflare/vitest-pool-workers",
+      "before": "^0.12.4",
+      "after": null
+    },
+    {
+      "app": "worker",
+      "section": "devDependencies",
+      "name": "@cloudflare/workers-types",
+      "before": "^4.20260702.1",
+      "after": "5.20261019.1"
+    },
+    {
+      "app": "worker",
+      "section": "devDependencies",
+      "name": "vitest",
+      "before": "~3.2.0",
+      "after": "4.1.12"
+    },
+    {
+      "app": "worker",
+      "section": "devDependencies",
+      "name": "wrangler",
+      "before": "^3.101.0",
+      "after": "4.152.0"
+    },
+    {
+      "app": "worker",
+      "section": "devDependencies",
+      "name": "@cloudflare/vitest-plugin",
+      "before": null,
+      "after": "1.4.7"
+    },
+    {
+      "app": "worker",
+      "section": "overrides",
+      "name": "undici@>=7 <8",
+      "before": null,
+      "after": "7.30.1"
+    },
+    {
+      "app": "worker",
+      "section": "overrides",
+      "name": "zod@>=4 <5",
+      "before": null,
+      "after": "4.6.7"
+    },
+    {
+      "app": "frontend",
+      "section": "dependencies",
+      "name": "react",
+      "before": "^19.2.7",
+      "after": "19.2.8"
+    },
+    {
+      "app": "frontend",
+      "section": "dependencies",
+      "name": "react-dom",
+      "before": "^19.2.7",
+      "after": "19.2.8"
+    },
+    {
+      "app": "frontend",
+      "section": "dependencies",
+      "name": "react-router-dom",
+      "before": "^7.18.1",
+      "after": "7.18.4"
+    }
+  ],
+  "checks": [
+    {
+      "name": "Family",
+      "app": "worker",
+      "args": [
+        "test",
+        "--",
+        "run",
+        "--maxWorkers=1"
+      ],
+      "code": 0,
+      "seconds": 8.05
+    },
+    {
+      "name": "Family",
+      "app": "worker",
+      "args": [
+        "exec",
+        "--",
+        "tsc",
+        "--noEmit"
+      ],
+      "code": 0,
+      "seconds": 1.853
+    },
+    {
+      "name": "Family",
+      "app": "frontend",
+      "args": [
+        "run",
+        "build"
+      ],
+      "code": 0,
+      "seconds": 3.232
+    },
+    {
+      "name": "Family",
+      "app": "frontend",
+      "args": [
+        "run",
+        "lint"
+      ],
+      "code": 0,
+      "seconds": 0.418
+    }
+  ],
+  "performance": {
+    "name": "Family",
+    "app": "frontend",
+    "base": "52cba6f4d3801c0b693a1cd624b9b83343566528",
+    "metric": "client JS+CSS gzip bytes, level 9",
+    "threshold": "after <= before * 1.05",
+    "before": {
+      "bytes": 343007,
+      "gzipBytes": 106948,
+      "files": 5
+    },
+    "after": {
+      "bytes": 340490,
+      "gzipBytes": 106304,
+      "files": 5
+    },
+    "ratio": 0.993978382017429,
+    "pass": true,
+    "environment": "Windows x64, Node 24.22.1, same source/mode, sequential; fixture config, not deployed"
+  },
+  "dependency_gate": "passed",
+  "regression_gate": "passed",
+  "ci": "not_run",
+  "release_gate": "pending_review_and_CI",
+  "deployed": false,
+  "model_rating": "not_scored",
+  "monthly_cost": "No new services, billing plans or paid API introduced; synthetic verification uses local tools. Production quota/traffic acceptance not performed.",
+  "limitations": [
+    "Public npm advisories are a point-in-time dependency check, not full SAST, history or binary compromise analysis.",
+    "Build and fixture performance do not establish production latency.",
+    "Default machine Node 24.14.1 remains outside the portable verification runtime."
+  ],
+  "security_contract": {
+    "approval": "Every protected data API request rechecks current approval; removed users 403; source unavailable 503; owner follows current configuration",
+    "images": "v2 HMAC binds path/version/24h expiry; legacy signatures rejected; private,no-store; persisted avatars reissued",
+    "remaining_window": "Bearer URLs already obtained remain valid until 24h expiry; old caches and downloaded files cannot be recalled",
+    "fixture_latency_gate": "50 warm synthetic API calls after 5 warmups; p95<100ms asserted by passing security test; not real GitHub latency",
+    "migration": "No data migration; deploy Worker intentionally, then reload frontend data to renew image links; old open pages may need reload",
+    "cost": "One extra GitHub read per protected member data API request; rate/quota and real upstream latency pending release acceptance"
+  }
+}

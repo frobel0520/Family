@@ -62,6 +62,9 @@ export async function checkAccess(
 export async function isStillApproved(env: Env, email: string): Promise<boolean> {
 	if (isOwner(env, email)) return true;
 	const state = await getAccessState(env);
+	if (!Array.isArray(state.approved) || !state.approved.every((value) => typeof value === "string")) {
+		throw new Error("Invalid approval list");
+	}
 	return state.approved.includes(email.toLowerCase());
 }
 
