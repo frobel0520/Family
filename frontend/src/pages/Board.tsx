@@ -7,6 +7,7 @@ import {
 	deleteBoardComment,
 	deleteBoardPost,
 	editBoardPost,
+	boardTextEditAvailable,
 	listBoardPosts,
 	toggleBoardReaction,
 } from "../api";
@@ -52,6 +53,7 @@ export function Board() {
 	const [editing, setEditing] = useState<{ id: string; content: string; expectedUpdatedAt: string } | null>(null);
 	const [savingEdit, setSavingEdit] = useState(false);
 	const [editError, setEditError] = useState<string | null>(null);
+	const [editAvailable, setEditAvailable] = useState(false);
 	const fileInput = useRef<HTMLInputElement>(null);
 	const commentFileInputs = useRef<Record<string, HTMLInputElement | null>>({});
 
@@ -65,6 +67,13 @@ export function Board() {
 			.then(setPosts)
 			.catch((err: Error) => setLoadError(err.message))
 			.finally(() => setLoading(false));
+	}, [session?.token]);
+
+	useEffect(() => {
+		let active = true;
+		setEditAvailable(false);
+		if (session) void boardTextEditAvailable(session.token).then(available => { if (active) setEditAvailable(available); });
+		return () => { active = false; };
 	}, [session?.token]);
 
 	// 燈箱開著時用鍵盤左右翻圖／Esc 關閉（桌機用；手機還是點兩側的箭頭）
@@ -346,7 +355,7 @@ export function Board() {
 								</form>
 							) : <>
 								{post.content && <p>{post.content}</p>}
-								{post.authorEmail && post.authorEmail.toLowerCase() === session.email?.toLowerCase() && (
+								{editAvailable && post.authorEmail && post.authorEmail.toLowerCase() === session.email?.toLowerCase() && (
 									<button type="button" disabled={editing !== null || savingEdit} onClick={() => {
 										setEditing({ id: post.id, content: post.content, expectedUpdatedAt: post.updatedAt }); setEditError(null);
 									}}>編輯貼文</button>

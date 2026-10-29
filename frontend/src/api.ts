@@ -53,6 +53,11 @@ export const editBoardPost = (token: string, id: string, content: string, expect
 		body: JSON.stringify({ id, content, expectedUpdatedAt }),
 	});
 
+/** Keep the new UI hidden while a deployment still serves the older Worker. */
+export const boardTextEditAvailable = (token: string) =>
+	request<{ textEdit: boolean }>("/api/board/edit", { headers: authHeaders(token) })
+		.then(result => result.textEdit === true).catch(() => false);
+
 /** 按同一個表情 = 取消，按別的 = 換掉；回傳整則貼文最新的表情彙總。 */
 export const toggleBoardReaction = (token: string, postId: string, emoji: string) =>
 	request<{ reactions: ReactionSummary[] }>("/api/board/react", {
