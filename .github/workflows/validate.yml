@@ -45,4 +45,5 @@ jobs:
       - run: npm ci
       - run: npx tsc --noEmit
       - run: npm test -- --run
+      - run: node --test scripts/publish-worker-ci.check.mjs
 
