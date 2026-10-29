@@ -1,5 +1,6 @@
 import { requireSession } from "../session";
-import { readJsonArrayFile, updateJsonArrayFile, putBase64File } from "../github-contents";
+import { readJsonArrayFile, updateJsonArrayFile, putBase64File, GithubApiError } from "../github-contents";
+import { BoardEditError, editBoardPost } from "../board-edit";
 import { jsonResponse } from "../response";
 import { excerpt, notifyAll, notifyEmail } from "../notify";
 import { imageProxyUrl } from "../image-url";
@@ -249,6 +250,36 @@ export async function handleDeleteBoardPost(request: Request, env: Env): Promise
 	return jsonResponse({ ok: true });
 }
 
+/** Edit text only; never upload images or notify members for an edit. */
+export async function handleEditBoardPost(request: Request, env: Env): Promise<Response> {
+	const auth = await requireSession(request, env);
+	if ("response" in auth) return auth.response;
+	let body: unknown;
+	try { body = await request.json(); }
+	catch { return jsonResponse({ error: "Invalid JSON body" }, 400); }
+	if (!body || typeof body !== "object" || Array.isArray(body)) {
+		return jsonResponse({ error: "Invalid edit body" }, 400);
+	}
+	const { id, content, expectedUpdatedAt } = body as Record<string, unknown>;
+	if (typeof id !== "string" || !id || typeof content !== "string" ||
+		typeof expectedUpdatedAt !== "string" || !expectedUpdatedAt || content.length > 5000) {
+		return jsonResponse({ error: "需要貼文、文字（最多 5000 字）與原始版本" }, 400);
+	}
+	try {
+		const posts = await updateJsonArrayFile<BoardPost>(env, "data/board.json",
+			list => editBoardPost(list, auth.session.email, { id, content, expectedUpdatedAt }),
+			"board: edit post text");
+		const post = posts.find(item => item.id === id)!;
+		return jsonResponse({ id: post.id, content: post.content, updatedAt: post.updatedAt });
+	} catch (error) {
+		if (error instanceof BoardEditError) return jsonResponse({ error: error.message }, error.status);
+		if (error instanceof GithubApiError && (error.status === 409 || error.status === 422)) {
+			return jsonResponse({ error: "貼文有其他更新，請重新載入後再編輯；你的草稿仍保留在此" }, 409);
+		}
+		return jsonResponse({ error: "暫時無法儲存貼文，請稍後重試" }, 503);
+	}
+}
+
 /** 在貼文底下留言。 */
 export async function handleCreateBoardComment(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
 	const auth = await requireSession(request, env);
@@ -424,3 +455,4 @@ export async function handleDeleteBoardComment(request: Request, env: Env): Prom
 
 	return jsonResponse({ ok: true });
 }
+
