@@ -1,0 +1,56 @@
+name: Publish verified Family Worker
+on:
+  push:
+    branches: [main]
+    paths: ['worker/src/**', 'worker/package*.json', 'worker/wrangler.jsonc', 'worker/scripts/publish-worker-ci.mjs', '.github/workflows/publish-worker.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: family-worker-publication
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 12
+    defaults:
+      run:
+        working-directory: worker
+    steps:
+      - name: Require owner and main
+        run: |
+          test "$GITHUB_REF" = refs/heads/main
+          test "$GITHUB_ACTOR" = "$GITHUB_REPOSITORY_OWNER"
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24.22.1'
+          cache: npm
+          cache-dependency-path: worker/package-lock.json
+      - run: node --test scripts/publish-worker-ci.check.mjs
+      - name: Check existing publication bindings
+        id: bindings
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if test -n "$CF_TOKEN" && test -n "$CF_ACCOUNT"; then echo ready=true >> "$GITHUB_OUTPUT"; else echo ready=false >> "$GITHUB_OUTPUT"; fi
+      - if: steps.bindings.outputs.ready == 'true'
+        run: npm ci
+      - if: steps.bindings.outputs.ready == 'true'
+        run: npx tsc --noEmit && npm test -- --run
+      - name: Publish only with this repository's own bindings
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: node scripts/publish-worker-ci.mjs
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: worker-publication-${{ github.run_id }}
+          path: worker/artifacts/worker-publication/report.json
+          retention-days: 14
+          if-no-files-found: warn
