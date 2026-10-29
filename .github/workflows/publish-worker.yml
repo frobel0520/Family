@@ -19,6 +19,7 @@ jobs:
         working-directory: worker
     steps:
       - name: Require owner and main
+        working-directory: .
         run: |
           test "$GITHUB_REF" = refs/heads/main
           test "$GITHUB_ACTOR" = "$GITHUB_REPOSITORY_OWNER"
