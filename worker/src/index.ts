@@ -4,6 +4,7 @@ import {
 	handleListBoardPosts,
 	handleCreateBoardPost,
 	handleDeleteBoardPost,
+	handleEditBoardPost,
 	handleCreateBoardComment,
 	handleDeleteBoardComment,
 	handleToggleBoardReaction,
@@ -50,6 +51,9 @@ async function route(request: Request, env: Env, ctx: ExecutionContext): Promise
 
 	if (request.method === "POST" && url.pathname === "/api/board/delete") {
 		return handleDeleteBoardPost(request, env);
+	}
+	if (request.method === "POST" && url.pathname === "/api/board/edit") {
+		return handleEditBoardPost(request, env);
 	}
 
 	if (request.method === "POST" && url.pathname === "/api/board/react") {
@@ -158,3 +162,4 @@ export default {
 		ctx.waitUntil(runDueReminders(env));
 	},
 } satisfies ExportedHandler<Env>;
+

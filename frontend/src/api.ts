@@ -47,6 +47,12 @@ export const deleteBoardPost = (token: string, id: string) =>
 		body: JSON.stringify({ id }),
 	});
 
+export const editBoardPost = (token: string, id: string, content: string, expectedUpdatedAt: string) =>
+	request<Pick<BoardPost, "id" | "content" | "updatedAt">>("/api/board/edit", {
+		method: "POST", headers: authHeaders(token),
+		body: JSON.stringify({ id, content, expectedUpdatedAt }),
+	});
+
 /** 按同一個表情 = 取消，按別的 = 換掉；回傳整則貼文最新的表情彙總。 */
 export const toggleBoardReaction = (token: string, postId: string, emoji: string) =>
 	request<{ reactions: ReactionSummary[] }>("/api/board/react", {
@@ -179,3 +185,4 @@ export const denyRequest = (token: string, email: string) =>
 		headers: authHeaders(token),
 		body: JSON.stringify({ email }),
 	});
+
