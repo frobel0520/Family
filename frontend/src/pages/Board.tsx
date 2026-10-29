@@ -6,6 +6,7 @@ import {
 	createBoardPost,
 	deleteBoardComment,
 	deleteBoardPost,
+	editBoardPost,
 	listBoardPosts,
 	toggleBoardReaction,
 } from "../api";
@@ -48,6 +49,9 @@ export function Board() {
 	const [viewing, setViewing] = useState<ViewingImages | null>(null); // 點圖放大
 	const [expandedComments, setExpandedComments] = useState<Set<string>>(new Set());
 	const [reactingId, setReactingId] = useState<string | null>(null);
+	const [editing, setEditing] = useState<{ id: string; content: string; expectedUpdatedAt: string } | null>(null);
+	const [savingEdit, setSavingEdit] = useState(false);
+	const [editError, setEditError] = useState<string | null>(null);
 	const fileInput = useRef<HTMLInputElement>(null);
 	const commentFileInputs = useRef<Record<string, HTMLInputElement | null>>({});
 
@@ -90,6 +94,20 @@ export function Board() {
 		// 新資料用 email 比對（暱稱可以改，名字比對會失效）；舊資料退回名字比對
 		if (target.authorEmail && session.email) return target.authorEmail === session.email;
 		return target.author === session.name;
+	}
+
+	async function saveEdit(e: React.FormEvent) {
+		e.preventDefault();
+		if (!session || !editing || savingEdit) return;
+		setSavingEdit(true);
+		setEditError(null);
+		try {
+			const updated = await editBoardPost(session.token, editing.id, editing.content, editing.expectedUpdatedAt);
+			setPosts(previous => previous.map(post => post.id === updated.id ? { ...post, ...updated } : post));
+			setEditing(null);
+		} catch (error) {
+			setEditError((error as Error).message);
+		} finally { setSavingEdit(false); }
 	}
 
 	async function handleSubmit(e: React.FormEvent) {
@@ -314,7 +332,26 @@ export function Board() {
 									<span className="board-post-time">{formatTime(post.createdAt)}</span>
 								</div>
 							</div>
-							{post.content && <p>{post.content}</p>}
+							{post.updatedAt !== post.createdAt && <span className="hint">已編輯</span>}
+							{editing?.id === post.id ? (
+								<form className="board-form" onSubmit={saveEdit}>
+									<label htmlFor={`edit-${post.id}`}>編輯貼文文字</label>
+									<textarea id={`edit-${post.id}`} rows={3} maxLength={5000} disabled={savingEdit}
+										value={editing.content} onChange={event => setEditing({ ...editing, content: event.target.value })} />
+									<div className="board-form-actions">
+										<button type="submit" disabled={savingEdit || (!editing.content.trim() && postImages.length === 0)}>{savingEdit ? "儲存中…" : "儲存"}</button>
+										<button type="button" disabled={savingEdit} onClick={() => { setEditing(null); setEditError(null); }}>取消</button>
+									</div>
+									{editError && <p className="error" role="alert">{editError}</p>}
+								</form>
+							) : <>
+								{post.content && <p>{post.content}</p>}
+								{post.authorEmail && post.authorEmail.toLowerCase() === session.email?.toLowerCase() && (
+									<button type="button" disabled={editing !== null || savingEdit} onClick={() => {
+										setEditing({ id: post.id, content: post.content, expectedUpdatedAt: post.updatedAt }); setEditError(null);
+									}}>編輯貼文</button>
+								)}
+							</>}
 							{postImages.length > 0 && (
 								<div className={`board-post-images count-${Math.min(postImages.length, 3)}`}>
 									{postImages.map((url, index) => (
@@ -339,6 +376,7 @@ export function Board() {
 									type="button"
 									className="delete-x"
 									aria-label="刪除貼文"
+									disabled={editing?.id === post.id || savingEdit}
 									onClick={() => setPendingDelete({ kind: "post", post })}
 								>
 									✕
@@ -523,3 +561,4 @@ export function Board() {
 		</div>
 	);
 }
+
