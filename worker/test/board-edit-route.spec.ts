@@ -32,6 +32,13 @@ async function invoke(body: unknown = input, email = "member@example.com", autho
 }
 
 describe("authenticated board edit route", () => {
+	it("advertises editing only after authenticating against the current Worker", async () => {
+		upstream();
+		const token = await signSession({ sub: "synthetic", name: "Synthetic", email: "member@example.com", avatar: "", isOwner: false }, secret, 300);
+		const response = await worker.fetch(new Request("https://example.com/api/board/edit", { headers: { authorization: `Bearer ${token}` } }), env, ctx);
+		expect(response.status).toBe(200); expect(await response.json()).toEqual({ textEdit: true });
+		expect((await worker.fetch(new Request("https://example.com/api/board/edit"), env, ctx)).status).toBe(401);
+	});
 	it("saves text with the current file SHA, preserves attachments/comments and never sends notifications", async () => {
 		const remote = upstream();
 		const response = await invoke({ ...input, imagePaths: ["forged"], authorEmail: "forged@example.com" });

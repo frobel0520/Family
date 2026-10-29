@@ -25,6 +25,7 @@ import { handleGetProfile, handleUpdateProfile } from "./routes/profile";
 import { handleImage } from "./routes/image";
 import { jsonResponse } from "./response";
 import { handlePreflight, withCors } from "./cors";
+import { requireSession } from "./session";
 
 async function route(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
 	const url = new URL(request.url);
@@ -54,6 +55,10 @@ async function route(request: Request, env: Env, ctx: ExecutionContext): Promise
 	}
 	if (request.method === "POST" && url.pathname === "/api/board/edit") {
 		return handleEditBoardPost(request, env);
+	}
+	if (request.method === "GET" && url.pathname === "/api/board/edit") {
+		const auth = await requireSession(request, env);
+		return "response" in auth ? auth.response : jsonResponse({ textEdit: true });
 	}
 
 	if (request.method === "POST" && url.pathname === "/api/board/react") {
