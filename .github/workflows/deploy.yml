@@ -8,7 +8,7 @@ name: Redirect old GitHub Pages site
 on:
   push:
     branches: [main]
-    paths: ['.github/workflows/deploy.yml']
+    paths: ['.github/workflows/deploy.yml', 'pages-redirect/**']
   workflow_dispatch:
 
 permissions:
@@ -24,39 +24,21 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Write redirect page
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Build redirect page from template
         env:
           FAMILY_APP_URL: ${{ vars.FAMILY_APP_URL }}
         run: |
-          case "$FAMILY_APP_URL" in
-            https://*.workers.dev/Family/) ;;
-            *) echo "FAMILY_APP_URL must be https://<worker>.<subdomain>.workers.dev/Family/"; exit 1 ;;
-          esac
+          # 只接受 workers.dev 的 /Family/ 網址；字元限制也讓下面的 sed 替換不會被特殊字元破壞。
+          if ! printf '%s' "$FAMILY_APP_URL" | grep -Eq '^https://[a-z0-9-]+(\.[a-z0-9-]+)*\.workers\.dev/Family/$'; then
+            echo "FAMILY_APP_URL must be https://<worker>.<subdomain>.workers.dev/Family/"
+            exit 1
+          fi
           mkdir -p site
-          url_js=$(node -e 'process.stdout.write(JSON.stringify(process.argv[1]))' "$FAMILY_APP_URL")
-          cat > site/index.html <<HTML
-          <!doctype html>
-          <html lang="zh-Hant">
-          <head>
-          <meta charset="utf-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1">
-          <meta name="referrer" content="no-referrer">
-          <title>Family APP 已搬家</title>
-          <script>
-          try { localStorage.removeItem("family-app-session"); } catch (e) {}
-          if ("serviceWorker" in navigator) {
-            navigator.serviceWorker.getRegistrations().then(function (rs) {
-              rs.forEach(function (r) { if (new URL(r.scope).pathname.indexOf("/Family/") === 0) r.unregister(); });
-            }).catch(function () {});
-          }
-          location.replace($url_js + location.hash);
-          </script>
-          </head>
-          <body>
-          <p>Family APP 已搬到新網址，請重新加入主畫面：<a href="$FAMILY_APP_URL">$FAMILY_APP_URL</a></p>
-          </body>
-          </html>
-          HTML
+          sed "s#__FAMILY_APP_URL__#${FAMILY_APP_URL}#g" pages-redirect/index.html > site/index.html
+          if grep -q '__FAMILY_APP_URL__' site/index.html; then echo "placeholder not replaced"; exit 1; fi
           cp site/index.html site/404.html
       - uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5
       - uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3
