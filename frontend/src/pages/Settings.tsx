@@ -42,13 +42,13 @@ function ProfileSection() {
 
 	useEffect(() => {
 		if (!session) return;
-		getProfile(session.token)
+		getProfile()
 			.then((p) => {
 				setProfile(p);
 				setNickname(p.nickname ?? "");
 			})
 			.catch((err: Error) => setLoadError(err.message));
-	}, [session?.token]); // eslint-disable-line react-hooks/exhaustive-deps
+	}, [session?.email]); // eslint-disable-line react-hooks/exhaustive-deps
 
 	if (!session) {
 		return (
@@ -65,7 +65,7 @@ function ProfileSection() {
 		setSaveError(null);
 		setSaved(false);
 		try {
-			const result = await updateProfile(session.token, data);
+			const result = await updateProfile(data);
 			applySessionResponse(result);
 			setProfile((prev) =>
 				prev
@@ -198,10 +198,10 @@ function NotificationSection({ installed, platform }: { installed: boolean; plat
 		setError(null);
 		try {
 			if (subscribed) {
-				await disablePush(session.token);
+				await disablePush();
 				setSubscribed(false);
 			} else {
-				await enablePush(session.token);
+				await enablePush();
 				setSubscribed(true);
 			}
 		} catch (err) {

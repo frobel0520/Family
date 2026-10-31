@@ -3,6 +3,7 @@ import { jsonResponse } from "../response";
 import { putBase64File } from "../github-contents";
 import { avatarPathForEmail, avatarProxyUrl, getProfile, upsertProfile } from "../profiles";
 import { signSession } from "../jwt";
+import { sessionCookie, withSessionCookie } from "../cookie";
 import { isOwner } from "../access";
 
 const NICKNAME_MAX = 20;
@@ -99,10 +100,12 @@ export async function handleUpdateProfile(request: Request, env: Env): Promise<R
 		SESSION_TTL_SECONDS,
 	);
 
-	return jsonResponse({
-		token,
-		user: { name, avatar, isOwner: owner, email },
-		expiresIn: SESSION_TTL_SECONDS,
-		profile: { nickname: profile.nickname ?? null, customAvatarUrl: await avatarProxyUrl(request, env, profile) },
-	});
+	return withSessionCookie(
+		jsonResponse({
+			user: { name, avatar, isOwner: owner, email },
+			expiresIn: SESSION_TTL_SECONDS,
+			profile: { nickname: profile.nickname ?? null, customAvatarUrl: await avatarProxyUrl(request, env, profile) },
+		}),
+		sessionCookie(token, SESSION_TTL_SECONDS),
+	);
 }

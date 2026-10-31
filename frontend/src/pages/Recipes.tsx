@@ -31,11 +31,11 @@ export function Recipes() {
 			return;
 		}
 		setLoading(true);
-		listRecipes(session.token)
+		listRecipes()
 			.then(setRecipes)
 			.catch((err: Error) => setLoadError(err.message))
 			.finally(() => setLoading(false));
-	}, [session?.token]);
+	}, [session?.email]);
 
 	function selectCategory(c: string | null) {
 		setActiveCategory(c);
@@ -52,7 +52,7 @@ export function Recipes() {
 			const recipeImageBase64 = recipeFile
 				? await fileToResizedJpegDataUrl(recipeFile, RECIPE_IMAGE_MAX_SIDE)
 				: undefined;
-			const newRecipe = await createRecipe(session.token, { name: name.trim(), category, recipeImageBase64 });
+			const newRecipe = await createRecipe({ name: name.trim(), category, recipeImageBase64 });
 			setRecipes((prev) => [...prev, newRecipe]);
 			setName("");
 			setRecipeFile(null);
@@ -66,7 +66,7 @@ export function Recipes() {
 
 	async function handleUploadRecipe(recipe: Recipe, dataUrl: string) {
 		if (!session) return;
-		const updated = await uploadRecipeImage(session.token, recipe.id, dataUrl);
+		const updated = await uploadRecipeImage(recipe.id, dataUrl);
 		setRecipes((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
 		setViewing((prev) => (prev && prev.id === updated.id ? updated : prev));
 	}
