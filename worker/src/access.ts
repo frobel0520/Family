@@ -20,6 +20,12 @@ interface AccessState {
 }
 
 const ACCESS_PATH = "data/access.json";
+
+/**
+ * 待審核申請的上限。任何 Google 帳號登入都會排進佇列（寫一次 commit、推播一次給擁有者），
+ * 不設上限的話可以被大量帳號灌爆；家庭用途 20 筆綽綽有餘，滿了就請對方直接聯絡管理員。
+ */
+export const MAX_PENDING_REQUESTS = 20;
 const EMPTY_STATE: AccessState = { approved: [], pending: [] };
 
 function isOwner(env: Env, email: string): boolean {
@@ -38,21 +44,22 @@ async function getAccessState(env: Env): Promise<AccessState> {
 export async function checkAccess(
 	env: Env,
 	user: { email: string; name: string; avatar: string },
-): Promise<{ allowed: true } | { allowed: false; pending: boolean }> {
+): Promise<{ allowed: true } | { allowed: false; pending: boolean; queueFull: boolean }> {
 	if (isOwner(env, user.email)) return { allowed: true };
 
 	const email = user.email.toLowerCase();
 	const state = await getAccessState(env);
 
 	if (state.approved.includes(email)) return { allowed: true };
-	if (state.pending.some((p) => p.email === email)) return { allowed: false, pending: true };
+	if (state.pending.some((p) => p.email === email)) return { allowed: false, pending: true, queueFull: false };
+	if (state.pending.length >= MAX_PENDING_REQUESTS) return { allowed: false, pending: false, queueFull: true };
 
 	await updateJsonFile(env, ACCESS_PATH, EMPTY_STATE, (s) => ({
 		...s,
 		pending: [...s.pending, { email, name: user.name, avatar: user.avatar, requestedAt: new Date().toISOString() }],
 	}), `access: ${email} requested login`);
 
-	return { allowed: false, pending: false };
+	return { allowed: false, pending: false, queueFull: false };
 }
 
 /**
