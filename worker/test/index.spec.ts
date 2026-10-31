@@ -17,6 +17,7 @@ describe("router", () => {
 	it("requires auth on push subscribe", async () => {
 		const request = new IncomingRequest("http://example.com/api/push/subscribe", {
 			method: "POST",
+			headers: { Origin: "http://example.com" },
 			body: JSON.stringify({}),
 		});
 		const ctx = createExecutionContext();
@@ -26,7 +27,7 @@ describe("router", () => {
 	});
 
 	it("requires a still-valid token to refresh a session (過期就只能重新登入)", async () => {
-		const request = new IncomingRequest("http://example.com/api/auth/refresh", { method: "POST" });
+		const request = new IncomingRequest("http://example.com/api/auth/refresh", { method: "POST", headers: { Origin: "http://example.com" } });
 		const ctx = createExecutionContext();
 		const response = await worker.fetch(request, env, ctx);
 		await waitOnExecutionContext(ctx);

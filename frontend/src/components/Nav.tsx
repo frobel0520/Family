@@ -12,6 +12,11 @@ const TABS = [
 
 export function Nav() {
 	const { session, login, logout } = useAuth();
+	const handleLogout = () => {
+		logout().catch(() => {
+			window.alert("登出失敗，請確認網路連線後再試一次。");
+		});
+	};
 	const tabs = session?.isOwner ? [...TABS, { to: "/admin", icon: "🛡️", label: "審核" }] : TABS;
 
 	return (
@@ -24,7 +29,7 @@ export function Nav() {
 						<>
 							<Avatar name={session.name} avatar={session.avatar} className="nav-avatar" />
 							<span className="username">{session.name}</span>
-							<button type="button" className="logout" onClick={logout}>
+							<button type="button" className="logout" onClick={handleLogout}>
 								登出
 							</button>
 						</>

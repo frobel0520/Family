@@ -2,11 +2,15 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState, ty
 import type { Session, SessionResponse } from "./types";
 import { buildAuthorizeUrl, getRedirectUri } from "./googleOAuth";
 
-const STORAGE_KEY = "family-app-session";
+// 只存顯示用資料（名字、頭像、是否擁有者、到期時間）；session 本體是 HttpOnly cookie。
+const STORAGE_KEY = "family-app-profile";
+// 舊版把 bearer token 存在這個 key，啟動時清掉。
+const LEGACY_TOKEN_KEY = "family-app-session";
 // 「記住我」：每天最多自動續期一次（後端 TTL 是 30 天，所以每天開 App 的人永遠不會被登出）
 const REFRESH_EVERY_MS = 24 * 60 * 60 * 1000;
 
 function loadSession(): Session | null {
+	localStorage.removeItem(LEGACY_TOKEN_KEY);
 	const raw = localStorage.getItem(STORAGE_KEY);
 	if (!raw) return null;
 
@@ -25,7 +29,8 @@ function loadSession(): Session | null {
 interface AuthContextValue {
 	session: Session | null;
 	login: () => void;
-	logout: () => void;
+	/** 先請 Worker 清掉 HttpOnly cookie，成功才清本機狀態；失敗會丟錯讓畫面提示。 */
+	logout: () => Promise<void>;
 	exchangeCode: (code: string) => Promise<void>;
 	/** 更新個人資料後，後端會重簽 session（新暱稱/大頭貼立刻生效），用這個套用。 */
 	applySessionResponse: (data: SessionResponse) => void;
@@ -43,16 +48,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 		window.location.href = buildAuthorizeUrl();
 	}, []);
 
-	const logout = useCallback(() => {
+	const clearLocal = useCallback(() => {
 		localStorage.removeItem(STORAGE_KEY);
 		setSession(null);
 	}, []);
+
+	const logout = useCallback(async () => {
+		// JS 刪不掉 HttpOnly cookie，只有 Worker 能清；清不掉就不要假裝已登出（共用裝置上會留著有效 session）。
+		const response = await fetch("/api/auth/logout", { method: "POST", credentials: "same-origin" });
+		if (!response.ok) throw new Error(`Logout failed with status ${response.status}`);
+		clearLocal();
+	}, [clearLocal]);
 
 	const applySessionResponse = useCallback((data: SessionResponse) => {
 		const now = Date.now();
 		const expiresAt = now + data.expiresIn * 1000;
 		const newSession: Session = {
-			token: data.token,
 			name: data.user.name,
 			avatar: data.user.avatar,
 			email: data.user.email,
@@ -67,8 +78,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 	const exchangeCode = useCallback(
 		async (code: string) => {
-			const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/auth/callback`, {
+			const response = await fetch("/api/auth/callback", {
 				method: "POST",
+				credentials: "same-origin",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({ code, redirectUri: getRedirectUri() }),
 			});
@@ -84,8 +96,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 	);
 
 	/**
-	 * 「記住我」的續期：拿還沒過期的 token 換一張新的（有效期重新計算）。
-	 * 401/403（token 過期、或存取權被管理員移除）→ 登出，回登入頁；
+	 * 「記住我」的續期：用還沒過期的 session cookie 換一張新的（有效期重新計算）。
+	 * 401/403（session 過期、或存取權被管理員移除）→ 登出，回登入頁；
 	 * 其他失敗（離線、後端還沒部署到有這個端點的版本）→ 什麼都不做，保留現有 session 下次再試。
 	 */
 	const maybeRefresh = useCallback(
@@ -95,12 +107,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 			refreshing.current = true;
 			try {
-				const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/auth/refresh`, {
+				const response = await fetch("/api/auth/refresh", {
 					method: "POST",
-					headers: { Authorization: `Bearer ${current.token}` },
+					credentials: "same-origin",
 				});
 				if (response.status === 401 || response.status === 403) {
-					logout();
+					clearLocal();
 					return;
 				}
 				if (!response.ok) return;
@@ -111,7 +123,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 				refreshing.current = false;
 			}
 		},
-		[applySessionResponse, logout],
+		[applySessionResponse, clearLocal],
 	);
 
 	// 開 App 時續期一次；PWA 從背景切回前景也算「開 App」（手機上使用者幾乎不會真的重開）
@@ -132,8 +144,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 	// Session may have expired since last load without a re-render happening.
 	useEffect(() => {
-		if (session && session.expiresAt < Date.now()) logout();
-	}, [session, logout]);
+		if (session && session.expiresAt < Date.now()) clearLocal();
+	}, [session, clearLocal]);
 
 	return (
 		<AuthContext.Provider value={{ session, login, logout, exchangeCode, applySessionResponse }}>
