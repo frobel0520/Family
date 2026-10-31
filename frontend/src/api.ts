@@ -11,11 +11,12 @@ import type {
 } from "./types";
 import type { SessionResponse } from "./auth/types";
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL;
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
-	const response = await fetch(`${API_BASE}${path}`, {
+	// 前端與 Worker 同源：session 放在 HttpOnly cookie，瀏覽器自動帶上，JS 讀不到也不經手。
+	const response = await fetch(path, {
 		...options,
+		credentials: "same-origin",
 		headers: { "Content-Type": "application/json", ...options.headers },
 	});
 
@@ -27,56 +28,47 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 	return response.json();
 }
 
-function authHeaders(token: string): HeadersInit {
-	return { Authorization: `Bearer ${token}` };
-}
+export const listBoardPosts = () => request<BoardPost[]>("/api/board");
 
-export const listBoardPosts = (token: string) => request<BoardPost[]>("/api/board", { headers: authHeaders(token) });
-
-export const createBoardPost = (token: string, content: string, imagesBase64?: string[]) =>
+export const createBoardPost = (content: string, imagesBase64?: string[]) =>
 	request<BoardPost>("/api/board", {
 		method: "POST",
-		headers: authHeaders(token),
 		body: JSON.stringify({ content, ...(imagesBase64?.length ? { imagesBase64 } : {}) }),
 	});
 
-export const deleteBoardPost = (token: string, id: string) =>
+export const deleteBoardPost = (id: string) =>
 	request<{ ok: true }>("/api/board/delete", {
 		method: "POST",
-		headers: authHeaders(token),
 		body: JSON.stringify({ id }),
 	});
 
-export const editBoardPost = (token: string, id: string, content: string, expectedUpdatedAt: string) =>
+export const editBoardPost = (id: string, content: string, expectedUpdatedAt: string) =>
 	request<Pick<BoardPost, "id" | "content" | "updatedAt">>("/api/board/edit", {
-		method: "POST", headers: authHeaders(token),
+		method: "POST",
 		body: JSON.stringify({ id, content, expectedUpdatedAt }),
 	});
 
 /** Keep the new UI hidden while a deployment still serves the older Worker. */
-export const boardTextEditAvailable = (token: string) =>
-	request<{ textEdit: boolean }>("/api/board/edit", { headers: authHeaders(token) })
+export const boardTextEditAvailable = () =>
+	request<{ textEdit: boolean }>("/api/board/edit")
 		.then(result => result.textEdit === true).catch(() => false);
 
 /** 按同一個表情 = 取消，按別的 = 換掉；回傳整則貼文最新的表情彙總。 */
-export const toggleBoardReaction = (token: string, postId: string, emoji: string) =>
+export const toggleBoardReaction = (postId: string, emoji: string) =>
 	request<{ reactions: ReactionSummary[] }>("/api/board/react", {
 		method: "POST",
-		headers: authHeaders(token),
 		body: JSON.stringify({ postId, emoji }),
 	});
 
-export const createBoardComment = (token: string, postId: string, content: string, imagesBase64?: string[]) =>
+export const createBoardComment = (postId: string, content: string, imagesBase64?: string[]) =>
 	request<BoardComment>("/api/board/comment", {
 		method: "POST",
-		headers: authHeaders(token),
 		body: JSON.stringify({ postId, content, ...(imagesBase64?.length ? { imagesBase64 } : {}) }),
 	});
 
-export const deleteBoardComment = (token: string, postId: string, commentId: string) =>
+export const deleteBoardComment = (postId: string, commentId: string) =>
 	request<{ ok: true }>("/api/board/comment/delete", {
 		method: "POST",
-		headers: authHeaders(token),
 		body: JSON.stringify({ postId, commentId }),
 	});
 
@@ -90,104 +82,90 @@ export interface EventInput {
 	remindAt: string | null;
 }
 
-export const listEvents = (token: string) => request<FamilyEvent[]>("/api/events", { headers: authHeaders(token) });
+export const listEvents = () => request<FamilyEvent[]>("/api/events");
 
-export const createEvent = (token: string, data: EventInput) =>
+export const createEvent = (data: EventInput) =>
 	request<FamilyEvent>("/api/events", {
 		method: "POST",
-		headers: authHeaders(token),
 		body: JSON.stringify(data),
 	});
 
-export const updateEvent = (token: string, id: string, data: EventInput) =>
+export const updateEvent = (id: string, data: EventInput) =>
 	request<FamilyEvent>("/api/events/update", {
 		method: "POST",
-		headers: authHeaders(token),
 		body: JSON.stringify({ id, ...data }),
 	});
 
-export const deleteEvent = (token: string, id: string) =>
+export const deleteEvent = (id: string) =>
 	request<{ ok: true }>("/api/events/delete", {
 		method: "POST",
-		headers: authHeaders(token),
 		body: JSON.stringify({ id }),
 	});
 
 /** 已核准的家人名單（勾選提醒對象用）。 */
-export const listFamily = (token: string) => request<FamilyMember[]>("/api/family", { headers: authHeaders(token) });
+export const listFamily = () => request<FamilyMember[]>("/api/family");
 
-export const listRecipes = (token: string) => request<Recipe[]>("/api/recipes", { headers: authHeaders(token) });
+export const listRecipes = () => request<Recipe[]>("/api/recipes");
 
-export const createRecipe = (token: string, data: { name: string; category: string; recipeImageBase64?: string }) =>
+export const createRecipe = (data: { name: string; category: string; recipeImageBase64?: string }) =>
 	request<Recipe>("/api/recipes", {
 		method: "POST",
-		headers: authHeaders(token),
 		body: JSON.stringify(data),
 	});
 
-export const uploadRecipeImage = (token: string, id: string, photoBase64: string) =>
+export const uploadRecipeImage = (id: string, photoBase64: string) =>
 	request<Recipe>("/api/recipes/recipe-image", {
 		method: "POST",
-		headers: authHeaders(token),
 		body: JSON.stringify({ id, photoBase64 }),
 	});
 
-export const listOrders = (token: string) => request<Order[]>("/api/orders", { headers: authHeaders(token) });
+export const listOrders = () => request<Order[]>("/api/orders");
 
-export const createOrder = (token: string, dishName: string) =>
+export const createOrder = (dishName: string) =>
 	request<Order>("/api/orders", {
 		method: "POST",
-		headers: authHeaders(token),
 		body: JSON.stringify({ dishName }),
 	});
 
-export const deleteOrder = (token: string, id: string) =>
+export const deleteOrder = (id: string) =>
 	request<{ ok: true }>("/api/orders/delete", {
 		method: "POST",
-		headers: authHeaders(token),
 		body: JSON.stringify({ id }),
 	});
 
-export const getProfile = (token: string) => request<Profile>("/api/profile", { headers: authHeaders(token) });
+export const getProfile = () => request<Profile>("/api/profile");
 
-export const updateProfile = (
-	token: string,
-	data: { nickname?: string; avatar?: "google" | { base64: string } },
+export const updateProfile = (data: { nickname?: string; avatar?: "google" | { base64: string } },
 ) =>
 	request<SessionResponse & { profile: { nickname: string | null; customAvatarUrl: string | null } }>("/api/profile", {
 		method: "POST",
-		headers: authHeaders(token),
 		body: JSON.stringify(data),
 	});
 
-export const subscribePush = (token: string, subscription: { endpoint: string; keys: { p256dh: string; auth: string } }) =>
+export const subscribePush = (subscription: { endpoint: string; keys: { p256dh: string; auth: string } }) =>
 	request<{ ok: true }>("/api/push/subscribe", {
 		method: "POST",
-		headers: authHeaders(token),
 		body: JSON.stringify({ subscription }),
 	});
 
-export const unsubscribePush = (token: string, endpoint: string) =>
+export const unsubscribePush = (endpoint: string) =>
 	request<{ ok: true }>("/api/push/unsubscribe", {
 		method: "POST",
-		headers: authHeaders(token),
 		body: JSON.stringify({ endpoint }),
 	});
 
-export const listPendingRequests = (token: string) =>
-	request<PendingRequest[]>("/api/admin/pending", { headers: authHeaders(token) });
+export const listPendingRequests = () =>
+	request<PendingRequest[]>("/api/admin/pending");
 
-export const approveRequest = (token: string, email: string) =>
+export const approveRequest = (email: string) =>
 	request<{ ok: true }>("/api/admin/approve", {
 		method: "POST",
-		headers: authHeaders(token),
 		body: JSON.stringify({ email }),
 	});
 
-export const denyRequest = (token: string, email: string) =>
+export const denyRequest = (email: string) =>
 	request<{ ok: true }>("/api/admin/deny", {
 		method: "POST",
-		headers: authHeaders(token),
 		body: JSON.stringify({ email }),
 	});
 

@@ -1,6 +1,7 @@
 import { verifySession, type SessionPayload } from "./jwt";
 import { jsonResponse } from "./response";
 import { isOwner, isStillApproved } from "./access";
+import { readSessionCookie } from "./cookie";
 
 /**
  * Session token 有效期。原本是 24h（家人每天都要重新用 Google 登入一次，被抱怨了），
@@ -13,18 +14,19 @@ import { isOwner, isStillApproved } from "./access";
 export const SESSION_TTL_SECONDS = 60 * 60 * 24 * 30;
 
 /**
- * Reads the "Authorization: Bearer <token>" header and verifies it.
+ * Reads the HttpOnly session cookie and verifies it. Bearer headers are deliberately
+ * not accepted: tokens issued to the old GitHub Pages frontend lived in localStorage
+ * on a shared origin, so they must not keep working after the move.
  * Returns the currently authorized session, or a 401/403/503 Response on failure.
  */
 export async function requireSession(
 	request: Request,
 	env: Env,
 ): Promise<{ session: SessionPayload } | { response: Response }> {
-	const authHeader = request.headers.get("Authorization");
-	const token = authHeader?.match(/^Bearer (.+)$/)?.[1];
+	const token = readSessionCookie(request);
 
 	if (!token) {
-		return { response: jsonResponse({ error: "Missing Authorization header" }, 401) };
+		return { response: jsonResponse({ error: "請先登入" }, 401) };
 	}
 
 	let session: SessionPayload | null;

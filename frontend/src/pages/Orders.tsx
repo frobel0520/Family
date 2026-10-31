@@ -31,21 +31,21 @@ export function Orders() {
 			return;
 		}
 		setLoading(true);
-		Promise.all([listRecipes(session.token), listOrders(session.token)])
+		Promise.all([listRecipes(), listOrders()])
 			.then(([recipesData, ordersData]) => {
 				setRecipes(recipesData);
 				setOrders(ordersData);
 			})
 			.catch((err: Error) => setLoadError(err.message))
 			.finally(() => setLoading(false));
-	}, [session?.token]);
+	}, [session?.email]);
 
 	async function handleAdd(recipe: Recipe) {
 		if (!session) return;
 		setAddingId(recipe.id);
 		setAddError(null);
 		try {
-			const newOrder = await createOrder(session.token, recipe.name);
+			const newOrder = await createOrder(recipe.name);
 			setOrders((prev) => [newOrder, ...prev]);
 		} catch (err) {
 			setAddError((err as Error).message);
@@ -63,7 +63,7 @@ export function Orders() {
 		if (!session || !pendingDone) return;
 		setCompleting(true);
 		try {
-			await deleteOrder(session.token, pendingDone.id);
+			await deleteOrder(pendingDone.id);
 			setOrders((prev) => prev.filter((o) => o.id !== pendingDone.id));
 		} catch (err) {
 			setAddError((err as Error).message);

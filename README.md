@@ -9,7 +9,7 @@
 
 A private, installable web app for a household to post updates, share recipes, order meals, and keep a shared calendar with push reminders — built with **zero traditional backend infrastructure**: no database, no VM, no container. Just a Cloudflare Worker, a GitHub repo used as a JSON data store, and a React PWA.
 
-[Live demo (login required)](https://frobel0520.github.io/Family/) · [Architecture](#architecture) · [Notable engineering](#notable-engineering)
+Live app: served by the Family Worker on `workers.dev` (login required; the old GitHub Pages URL redirects) · [Architecture](#architecture) · [Notable engineering](#notable-engineering)
 
 </div>
 
@@ -62,7 +62,7 @@ Each of those turned into a small, self-contained piece of infrastructure — de
 
 ```mermaid
 flowchart LR
-    subgraph Client["React PWA (GitHub Pages)"]
+    subgraph Client["React PWA (served by the Worker)"]
         UI[Board / Recipes / Orders / Calendar / Settings]
         SW[Service Worker]
     end
@@ -92,7 +92,7 @@ flowchart LR
 
 **No database.** Every mutation (`data/board.json`, `recipes.json`, `orders.json`, `events.json`, `profiles.json`, `access.json`) is a `git commit` to the private [Family-data](https://github.com/frobel0520/Family-data) repo made through GitHub's Contents API, using a bot token so family members never need write access to any repo. Reads go through the same API rather than `raw.githubusercontent.com`, avoiding CDN propagation delay on just-written data. It's not a design anyone would pick for scale — it's a deliberate trade for "zero infra, full history, free forever" at household scale, and the constraint turned out to force some interesting solutions of its own (see below).
 
-**No server-rendering, no server at all in the traditional sense.** The frontend is a static React SPA on GitHub Pages; the Worker is the only piece of custom backend logic, and it's stateless — session identity is a signed JWT, not a server-side session store.
+**No server-rendering, no server at all in the traditional sense.** The frontend is a static React SPA served as the Worker's static assets (same origin as the API); the Worker is the only piece of custom backend logic, and it's stateless — session identity is a signed JWT kept in an `HttpOnly` cookie, not a server-side session store. It moved off GitHub Pages because `<user>.github.io` is one origin shared by every Pages project, so any of them could read a token stored in `localStorage`.
 
 ## Notable engineering
 
@@ -114,7 +114,7 @@ A few pieces that go beyond typical CRUD-app plumbing:
 
 | Layer | Choice | Why |
 |---|---|---|
-| Frontend | React 19 + Vite, `HashRouter` | Static hosting on GitHub Pages has no server-side routing |
+| Frontend | React 19 + Vite, `HashRouter`, served by Worker static assets | Same origin as the API, so the session can be an HttpOnly cookie |
 | Backend | Cloudflare Workers (TypeScript) | Free tier, no server to patch, edge-deployed |
 | "Database" | JSON files in a private GitHub repo, via the Contents API | No hosting cost, full history/audit-log for free |
 | Auth | Google OAuth (Authorization Code flow), signed JWT sessions | Family members already have Google accounts |
@@ -140,16 +140,16 @@ npm install
 npm run dev      # wrangler dev
 npm test         # vitest, including the RFC 8291 test vector check
 
-# Frontend
+# Frontend (built into worker/public/Family, then served by `wrangler dev`)
 cd frontend
 npm install
-npm run dev      # vite dev server
+npm run build
 ```
 
 Both need their own `wrangler secret` / `.env` values (Google OAuth client, a GitHub fine-grained PAT scoped to a private data repo, a JWT signing secret, VAPID keys) — there's no shared config file, on purpose, since none of those values belong in git.
 
 ## Deployment
 
-- **Frontend** builds and deploys to GitHub Pages via GitHub Actions on every push to `main`.
-- **Worker** deploys with `wrangler deploy` (not currently automated in CI — a deliberate manual gate for a backend change). When a backend change tightens what the frontend must send, deploy both together.
+- **Frontend + Worker** ship together: `publish-worker.yml` builds the frontend into `worker/public/Family` and runs `wrangler deploy` (owner, `main`, `production` environment only), so they can no longer drift out of sync.
+- **Old GitHub Pages URL** only serves a redirect page (`deploy.yml`, repository variable `FAMILY_APP_URL`) that clears the legacy `localStorage` token and forwards to the Worker URL.
 - `frontend/index.html` loads the Harbor maintenance script (`data-project="family"`, since 2026-09-15): Harbor can switch on a full-screen maintenance page or a banner, and the app loads normally if Harbor is unreachable.

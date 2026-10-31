@@ -17,7 +17,7 @@ export function Admin() {
 
 	useEffect(() => {
 		if (!session) return;
-		listPendingRequests(session.token)
+		listPendingRequests()
 			.then(setPending)
 			.catch((err: Error) => setLoadError(err.message))
 			.finally(() => setLoading(false));
@@ -46,7 +46,7 @@ export function Admin() {
 		setActingOn(email);
 		setActionError(null);
 		try {
-			await approveRequest(session.token, email);
+			await approveRequest(email);
 			setPending((prev) => prev.filter((p) => p.email !== email));
 		} catch (err) {
 			setActionError((err as Error).message);
@@ -60,7 +60,7 @@ export function Admin() {
 		setActingOn(email);
 		setActionError(null);
 		try {
-			await denyRequest(session.token, email);
+			await denyRequest(email);
 			setPending((prev) => prev.filter((p) => p.email !== email));
 		} catch (err) {
 			setActionError((err as Error).message);

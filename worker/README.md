@@ -19,11 +19,11 @@ Set these with `wrangler secret put <NAME>` (never commit real values — `wrang
 Non-secret config lives in `wrangler.jsonc` under `vars`:
 
 - `GITHUB_REPO` — `"owner/repo"` of this project's repo
-- `ALLOWED_ORIGIN` — the GitHub Pages origin allowed to call this Worker (CORS), e.g. `"https://your-username.github.io"`
+- The frontend is served by this Worker's static assets (`assets.directory = ./public`, frontend build output in `public/Family/`), so the API is same-origin: no CORS, and the session is an `HttpOnly; Secure; SameSite=Strict` cookie (`__Host-family_session`) that page scripts cannot read. Writes must carry this Worker's own `Origin`.
 
 ### Google OAuth client settings
 
-- **Authorized redirect URIs**: the exact page the frontend loads at, e.g. `https://your-username.github.io/family-app/` — Google requires an exact match with no `#fragment`, unlike GitHub's classic OAuth Apps. You can register multiple redirect URIs on the same client, so add `http://localhost:5173/` too if you want to test login locally — no separate "dev" OAuth client needed.
+- **Authorized redirect URIs**: `https://<worker>.<subdomain>.workers.dev/Family/` — Google requires an exact match with no `#fragment`. The Worker only accepts a `redirectUri` equal to its own origin + `/Family/`. Add `http://localhost:8787/Family/` too if you test login locally with `wrangler dev`.
 - The frontend sends `code` **and** the `redirectUri` it used to `/api/auth/callback`; the Worker passes both to Google's token endpoint, since Google requires the redirect_uri in the token exchange to match the one used in the authorization request.
 - **OAuth consent screen** stays in "Testing" status (no need to submit for verification for a private family app) — add each family member's Google email under **Test users**, or they can't get past Google's own sign-in step at all. This is the first line of defense; `ALLOWED_EMAILS` above is the second, enforced independently by the Worker.
 

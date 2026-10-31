@@ -22,7 +22,7 @@ export async function getCurrentSubscription(): Promise<PushSubscription | null>
 }
 
 /** 開啟通知：要權限 → 跟瀏覽器拿訂閱 → 存到 Worker。必須由使用者點擊觸發（瀏覽器規定）。 */
-export async function enablePush(token: string): Promise<void> {
+export async function enablePush(): Promise<void> {
 	const permission = await Notification.requestPermission();
 	if (permission !== "granted") {
 		throw new Error("沒有拿到通知權限。如果之前按過「不允許」，要去瀏覽器設定裡手動開啟。");
@@ -32,14 +32,14 @@ export async function enablePush(token: string): Promise<void> {
 		userVisibleOnly: true,
 		applicationServerKey: base64UrlToUint8Array(VAPID_PUBLIC_KEY) as BufferSource,
 	});
-	await subscribePush(token, subscription.toJSON() as { endpoint: string; keys: { p256dh: string; auth: string } });
+	await subscribePush(subscription.toJSON() as { endpoint: string; keys: { p256dh: string; auth: string } });
 }
 
 /** 關閉通知：取消瀏覽器訂閱 + 從 Worker 移除。 */
-export async function disablePush(token: string): Promise<void> {
+export async function disablePush(): Promise<void> {
 	const subscription = await getCurrentSubscription();
 	if (!subscription) return;
 	const endpoint = subscription.endpoint;
 	await subscription.unsubscribe();
-	await unsubscribePush(token, endpoint);
+	await unsubscribePush(endpoint);
 }

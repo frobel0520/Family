@@ -63,18 +63,18 @@ export function Board() {
 			return;
 		}
 		setLoading(true);
-		listBoardPosts(session.token)
+		listBoardPosts()
 			.then(setPosts)
 			.catch((err: Error) => setLoadError(err.message))
 			.finally(() => setLoading(false));
-	}, [session?.token]);
+	}, [session?.email]);
 
 	useEffect(() => {
 		let active = true;
 		setEditAvailable(false);
-		if (session) void boardTextEditAvailable(session.token).then(available => { if (active) setEditAvailable(available); });
+		if (session) void boardTextEditAvailable().then(available => { if (active) setEditAvailable(available); });
 		return () => { active = false; };
-	}, [session?.token]);
+	}, [session?.email]);
 
 	// 燈箱開著時用鍵盤左右翻圖／Esc 關閉（桌機用；手機還是點兩側的箭頭）
 	useEffect(() => {
@@ -111,7 +111,7 @@ export function Board() {
 		setSavingEdit(true);
 		setEditError(null);
 		try {
-			const updated = await editBoardPost(session.token, editing.id, editing.content, editing.expectedUpdatedAt);
+			const updated = await editBoardPost(editing.id, editing.content, editing.expectedUpdatedAt);
 			setPosts(previous => previous.map(post => post.id === updated.id ? { ...post, ...updated } : post));
 			setEditing(null);
 		} catch (error) {
@@ -126,7 +126,7 @@ export function Board() {
 		setSubmitting(true);
 		setSubmitError(null);
 		try {
-			const newPost = await createBoardPost(session.token, content.trim(), attachedImages);
+			const newPost = await createBoardPost(content.trim(), attachedImages);
 			setPosts((prev) => [newPost, ...prev]);
 			setContent("");
 			setAttachedImages([]);
@@ -187,7 +187,7 @@ export function Board() {
 		setCommentingId(post.id);
 		setSubmitError(null);
 		try {
-			const newComment = await createBoardComment(session.token, post.id, draft, images);
+			const newComment = await createBoardComment(post.id, draft, images);
 			setPosts((prev) =>
 				prev.map((p) => (p.id === post.id ? { ...p, comments: [...(p.comments ?? []), newComment] } : p)),
 			);
@@ -216,7 +216,7 @@ export function Board() {
 		setReactions(applyLocalToggle(before, emoji, session.name));
 		setReactingId(post.id);
 		try {
-			const { reactions } = await toggleBoardReaction(session.token, post.id, emoji);
+			const { reactions } = await toggleBoardReaction(post.id, emoji);
 			setReactions(reactions);
 		} catch (err) {
 			setReactions(before);
@@ -240,11 +240,11 @@ export function Board() {
 		setDeleting(true);
 		try {
 			if (pendingDelete.kind === "post") {
-				await deleteBoardPost(session.token, pendingDelete.post.id);
+				await deleteBoardPost(pendingDelete.post.id);
 				setPosts((prev) => prev.filter((p) => p.id !== pendingDelete.post.id));
 			} else {
 				const { postId, comment } = pendingDelete;
-				await deleteBoardComment(session.token, postId, comment.id);
+				await deleteBoardComment(postId, comment.id);
 				setPosts((prev) =>
 					prev.map((p) =>
 						p.id === postId ? { ...p, comments: (p.comments ?? []).filter((c) => c.id !== comment.id) } : p,
