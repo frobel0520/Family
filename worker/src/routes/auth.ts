@@ -5,6 +5,12 @@ import { checkAccess, isOwner } from "../access";
 import { notifyEmail } from "../notify";
 import { effectiveIdentity, getProfile, rememberGoogleIdentity } from "../profiles";
 import { SESSION_TTL_SECONDS, requireSession } from "../session";
+import { clearedSessionCookie, sessionCookie, withSessionCookie } from "../cookie";
+
+/** 前端由同一個 Worker 提供，OAuth redirect_uri 只接受這個頁面。 */
+export function expectedRedirectUri(request: Request): string {
+	return `${new URL(request.url).origin}/Family/`;
+}
 
 export async function handleAuthCallback(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
 	let body: { code?: string; redirectUri?: string };
@@ -17,8 +23,8 @@ export async function handleAuthCallback(request: Request, env: Env, ctx: Execut
 	if (!body.code) {
 		return jsonResponse({ error: "Missing 'code'" }, 400);
 	}
-	if (!body.redirectUri) {
-		return jsonResponse({ error: "Missing 'redirectUri'" }, 400);
+	if (body.redirectUri !== expectedRedirectUri(request)) {
+		return jsonResponse({ error: "Invalid 'redirectUri'" }, 400);
 	}
 
 	try {
@@ -72,11 +78,13 @@ export async function handleAuthCallback(request: Request, env: Env, ctx: Execut
 			SESSION_TTL_SECONDS,
 		);
 
-		return jsonResponse({
-			token,
-			user: { name: identity.name, avatar: identity.avatar, isOwner: owner, email: user.email.toLowerCase() },
-			expiresIn: SESSION_TTL_SECONDS,
-		});
+		return withSessionCookie(
+			jsonResponse({
+				user: { name: identity.name, avatar: identity.avatar, isOwner: owner, email: user.email.toLowerCase() },
+				expiresIn: SESSION_TTL_SECONDS,
+			}),
+			sessionCookie(token, SESSION_TTL_SECONDS),
+		);
 	} catch (err) {
 		if (err instanceof GoogleOAuthError) {
 			return jsonResponse({ error: err.message }, 401);
@@ -86,7 +94,7 @@ export async function handleAuthCallback(request: Request, env: Env, ctx: Execut
 }
 
 /**
- * 「記住我」的續期端點：拿一個**還沒過期**的 token 換一個新的（TTL 重新計算），
+ * 「記住我」的續期端點：拿一個**還沒過期**的 session cookie 換一個新的（TTL 重新計算），
  * 前端每天開 App 時自動打一次（見 frontend/src/auth/AuthContext.tsx），所以只要
  * 使用者在 30 天內開過 App 就不用再走一次 Google 登入。
  *
@@ -127,9 +135,16 @@ export async function handleAuthRefresh(request: Request, env: Env): Promise<Res
 		SESSION_TTL_SECONDS,
 	);
 
-	return jsonResponse({
-		token,
-		user: { name: identity.name, avatar: identity.avatar, isOwner: owner, email: email.toLowerCase() },
-		expiresIn: SESSION_TTL_SECONDS,
-	});
+	return withSessionCookie(
+		jsonResponse({
+			user: { name: identity.name, avatar: identity.avatar, isOwner: owner, email: email.toLowerCase() },
+			expiresIn: SESSION_TTL_SECONDS,
+		}),
+		sessionCookie(token, SESSION_TTL_SECONDS),
+	);
+}
+
+/** 登出：清掉 HttpOnly cookie（前端 JS 自己刪不掉）。 */
+export function handleAuthLogout(): Response {
+	return withSessionCookie(jsonResponse({ ok: true }), clearedSessionCookie());
 }

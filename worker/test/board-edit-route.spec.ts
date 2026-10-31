@@ -26,7 +26,7 @@ function upstream(posts = [post], writeStatus = 200) {
 async function invoke(body: unknown = input, email = "member@example.com", authorized = true) {
 	const token = await signSession({ sub: "synthetic", name: "Synthetic", email, avatar: "", isOwner: false }, secret, 300);
 	return worker.fetch(new Request("https://example.com/api/board/edit", {
-		method: "POST", headers: { "content-type": "application/json", ...(authorized ? { authorization: `Bearer ${token}` } : {}) },
+		method: "POST", headers: { "content-type": "application/json", origin: "https://example.com", ...(authorized ? { cookie: `__Host-family_session=${token}` } : {}) },
 		body: JSON.stringify(body),
 	}), env, ctx);
 }
@@ -35,7 +35,7 @@ describe("authenticated board edit route", () => {
 	it("advertises editing only after authenticating against the current Worker", async () => {
 		upstream();
 		const token = await signSession({ sub: "synthetic", name: "Synthetic", email: "member@example.com", avatar: "", isOwner: false }, secret, 300);
-		const response = await worker.fetch(new Request("https://example.com/api/board/edit", { headers: { authorization: `Bearer ${token}` } }), env, ctx);
+		const response = await worker.fetch(new Request("https://example.com/api/board/edit", { headers: { cookie: `__Host-family_session=${token}` } }), env, ctx);
 		expect(response.status).toBe(200); expect(await response.json()).toEqual({ textEdit: true });
 		expect((await worker.fetch(new Request("https://example.com/api/board/edit"), env, ctx)).status).toBe(401);
 	});

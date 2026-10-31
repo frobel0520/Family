@@ -64,14 +64,14 @@ export function Calendar() {
 			return;
 		}
 		setLoading(true);
-		Promise.all([listEvents(session.token), listFamily(session.token)])
+		Promise.all([listEvents(), listFamily()])
 			.then(([loadedEvents, loadedFamily]) => {
 				setEvents(loadedEvents);
 				setFamily(loadedFamily);
 			})
 			.catch((err: Error) => setLoadError(err.message))
 			.finally(() => setLoading(false));
-	}, [session?.token]);
+	}, [session?.email]);
 
 	const eventsByDate = useMemo(() => {
 		const map = new Map<string, FamilyEvent[]>();
@@ -150,10 +150,10 @@ export function Calendar() {
 		setFormError(null);
 		try {
 			if (editing === "new") {
-				const created = await createEvent(session.token, payload);
+				const created = await createEvent(payload);
 				setEvents((prev) => [...prev, created]);
 			} else {
-				const saved = await updateEvent(session.token, editing.id, payload);
+				const saved = await updateEvent(editing.id, payload);
 				setEvents((prev) => prev.map((event) => (event.id === saved.id ? saved : event)));
 			}
 			setSelected(payload.date);
@@ -169,7 +169,7 @@ export function Calendar() {
 		if (!session || !pendingDelete) return;
 		setDeleting(true);
 		try {
-			await deleteEvent(session.token, pendingDelete.id);
+			await deleteEvent(pendingDelete.id);
 			setEvents((prev) => prev.filter((event) => event.id !== pendingDelete.id));
 			if (editing !== "new" && editing?.id === pendingDelete.id) setEditing(null);
 			setPendingDelete(null);
