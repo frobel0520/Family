@@ -2,6 +2,12 @@
 	"name": "family-app-worker",
 	"main": "src/index.ts",
 	"compatibility_date": "2024-09-23",
+	// 前端（frontend/ build 輸出到 public/Family/）由這個 Worker 一起提供，和 /api 同源。
+	// 不再放 GitHub Pages：frobel0520.github.io 由所有 Pages 專案共用同一個 origin，
+	// 任何一個站的腳本都讀得到別站的 localStorage。public/_headers 設 CSP 等標頭，_redirects 把 / 導到 /Family/。
+	"assets": {
+		"directory": "./public",
+	},
 	"observability": {
 		"enabled": true,
 	},
@@ -9,11 +15,9 @@
 	// set via `wrangler secret put <NAME>` — never put them here (this file is committed to git).
 	"vars": {
 		// 2026-07-20：資料/圖片搬到獨立的 private repo（frobel0520/Family-data），
-		// frobel0520/Family 現在只放前端程式碼（public，靠 GitHub Pages 部署）。
+		// frobel0520/Family 只放程式碼（public）；前端由本 Worker 的 static assets 提供。
 		// GITHUB_BOT_PAT 也要換成有 Family-data 存取權的新 fine-grained PAT，見 PROGRESS.md。
 		"GITHUB_REPO": "frobel0520/Family-data",
-		// Origin header only includes scheme+host, not the /Family/ path.
-		"ALLOWED_ORIGIN": "https://frobel0520.github.io",
 		// Web Push VAPID：公鑰（前端訂閱時也要用同一把，見 frontend/src/push.ts）；
 		// 私鑰是 secret VAPID_PRIVATE_JWK（wrangler secret put，JWK JSON 字串）
 		"VAPID_PUBLIC_KEY": "BC76hqNkJ9FmeXE1FKBXmv0v45n8yUdBeFvqtgmXR9B4n89iITOmjcnIV0z5-q97DQA6ZI7TmWjNueL0RRzmW-o",

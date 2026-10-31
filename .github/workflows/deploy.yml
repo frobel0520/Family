@@ -1,8 +1,14 @@
-name: Deploy frontend to GitHub Pages
+name: Redirect old GitHub Pages site
+
+# Family 前端已改由 Family Worker 提供（見 worker/wrangler.jsonc 的 assets）。
+# frobel0520.github.io 是所有 Pages 專案共用的 origin，任何一個站的腳本都讀得到別站的
+# localStorage，所以這裡只發布一頁轉址：清掉舊版存在 localStorage 的 token，導到新網址。
+# 新網址放在 repository variable FAMILY_APP_URL（例如 https://<worker>.<subdomain>.workers.dev/Family/）。
 
 on:
   push:
     branches: [main]
+    paths: ['.github/workflows/deploy.yml']
   workflow_dispatch:
 
 permissions:
@@ -18,27 +24,44 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
-      - run: npm ci
-        working-directory: frontend
-      - run: npm run build
-        working-directory: frontend
+      - name: Write redirect page
         env:
-          # Neither is secret (Client ID is public by design, this is just a URL) — set as
-          # repo Settings → Secrets and variables → Actions → Variables once the Google OAuth
-          # client and the deployed Worker exist. Until then the build falls back to empty/dev
-          # values, which is fine — login just won't work yet.
-          VITE_GOOGLE_CLIENT_ID: ${{ vars.VITE_GOOGLE_CLIENT_ID }}
-          VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
+          FAMILY_APP_URL: ${{ vars.FAMILY_APP_URL }}
+        run: |
+          case "$FAMILY_APP_URL" in
+            https://*.workers.dev/Family/) ;;
+            *) echo "FAMILY_APP_URL must be https://<worker>.<subdomain>.workers.dev/Family/"; exit 1 ;;
+          esac
+          mkdir -p site
+          url_js=$(node -e 'process.stdout.write(JSON.stringify(process.argv[1]))' "$FAMILY_APP_URL")
+          cat > site/index.html <<HTML
+          <!doctype html>
+          <html lang="zh-Hant">
+          <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1">
+          <meta name="referrer" content="no-referrer">
+          <title>Family APP 已搬家</title>
+          <script>
+          try { localStorage.removeItem("family-app-session"); } catch (e) {}
+          if ("serviceWorker" in navigator) {
+            navigator.serviceWorker.getRegistrations().then(function (rs) {
+              rs.forEach(function (r) { if (new URL(r.scope).pathname.indexOf("/Family/") === 0) r.unregister(); });
+            }).catch(function () {});
+          }
+          location.replace($url_js + location.hash);
+          </script>
+          </head>
+          <body>
+          <p>Family APP 已搬到新網址，請重新加入主畫面：<a href="$FAMILY_APP_URL">$FAMILY_APP_URL</a></p>
+          </body>
+          </html>
+          HTML
+          cp site/index.html site/404.html
+      - uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5
+      - uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3
         with:
-          path: frontend/dist
+          path: site
 
   deploy:
     needs: build
@@ -47,5 +70,5 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - uses: actions/deploy-pages@v4
+      - uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4
         id: deployment
