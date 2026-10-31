@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#d9480f">
+<title>Family APP 搬家了</title>
+<!--
+  舊 GitHub Pages 網址（frobel0520.github.io/Family/）的轉址頁，由 .github/workflows/deploy.yml 發布；
+  __FAMILY_APP_URL__ 會換成 repository variable FAMILY_APP_URL。
+  - 一般瀏覽器打開：清掉舊 token 後直接導到新網址。
+  - 從舊的主畫面圖示打開（standalone）：不自動跳走，顯示大字引導，讓家人知道要改用新版並重新加入主畫面。
+-->
+<style>
+  body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "PingFang TC", "Noto Sans TC", sans-serif; background: #faf6f0; color: #2b2622; }
+  main { max-width: 32rem; margin: 0 auto; padding: 2rem 1.25rem 3rem; }
+  h1 { font-size: 1.9rem; margin: 0 0 1rem; }
+  p, li { font-size: 1.15rem; line-height: 1.7; }
+  ol, ul { padding-left: 1.4rem; }
+  strong { color: #d9480f; }
+  .primary { display: block; text-align: center; background: #d9480f; color: #fff; text-decoration: none; font-size: 1.3rem; font-weight: 700; padding: 1rem; border-radius: 0.8rem; margin: 1.5rem 0; }
+  .url { word-break: break-all; background: #fff; border: 1px solid #e3d9cc; border-radius: 0.6rem; padding: 0.8rem; font-size: 1rem; }
+  .copy { margin-top: 0.6rem; font-size: 1.05rem; padding: 0.6rem 1rem; border-radius: 0.6rem; border: 1px solid #d9480f; background: #fff; color: #d9480f; }
+  .guide { display: none; }
+  .standalone .guide { display: block; }
+  .standalone .moving { display: none; }
+</style>
+<script>
+  (function () {
+    var target = "__FAMILY_APP_URL__";
+    // 舊版把 30 天 token 存在這個共用網域的 localStorage，先清掉。
+    try { localStorage.removeItem("family-app-session"); } catch (error) { /* 隱私模式等無法存取時沒有東西可清 */ }
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.getRegistrations().then(function (registrations) {
+        registrations.forEach(function (registration) {
+          if (new URL(registration.scope).pathname.indexOf("/Family/") === 0) registration.unregister();
+        });
+      }).catch(function () { /* 解除舊 service worker 失敗不影響轉址 */ });
+    }
+    var standalone = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
+    if (standalone) {
+      document.documentElement.className = "standalone";
+    } else {
+      location.replace(target + location.hash);
+    }
+  })();
+</script>
+</head>
+<body>
+<main>
+  <section class="moving">
+    <h1>Family APP 搬家了 🏡</h1>
+    <p>正在帶你到新網址…如果沒有自動跳轉，請點：</p>
+    <a class="primary" href="__FAMILY_APP_URL__">打開新版 Family</a>
+  </section>
+
+  <section class="guide">
+    <h1>Family APP 搬家了 🏡</h1>
+    <p>這個主畫面圖示是舊版的，以後請改用新版。只要做一次：</p>
+    <ol>
+      <li>點下面的大按鈕打開新版。</li>
+      <li>按「登入」，選你的 Google 帳號。</li>
+      <li>照新版首頁的提示，<strong>把新版加到主畫面</strong>、<strong>開啟通知</strong>。</li>
+      <li>最後長按這個舊圖示，把它刪掉。</li>
+    </ol>
+    <a class="primary" href="__FAMILY_APP_URL__">打開新版 Family</a>
+    <p>如果打開後找不到「加入主畫面」或「安裝」：</p>
+    <ul>
+      <li><strong>Android</strong>：點畫面右上角 <strong>⋮</strong>，選「在 Chrome 中開啟」，再照提示安裝。</li>
+      <li><strong>iPhone</strong>：打開 <strong>Safari</strong>，把下面的網址貼到網址列。</li>
+    </ul>
+    <div class="url" id="url">__FAMILY_APP_URL__</div>
+    <button type="button" class="copy" id="copy">複製網址</button>
+    <p id="copied" hidden>已複製，打開 Safari 貼到網址列就可以了。</p>
+  </section>
+</main>
+<script>
+  (function () {
+    var button = document.getElementById("copy");
+    var done = document.getElementById("copied");
+    button.addEventListener("click", function () {
+      var url = document.getElementById("url").textContent;
+      if (!navigator.clipboard) { done.textContent = "這個瀏覽器不能自動複製，請長按上面的網址複製。"; done.hidden = false; return; }
+      navigator.clipboard.writeText(url).then(function () {
+        done.hidden = false;
+      }, function () {
+        done.textContent = "複製失敗，請長按上面的網址複製。";
+        done.hidden = false;
+      });
+    });
+  })();
+</script>
+</body>
+</html>

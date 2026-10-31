@@ -3,6 +3,10 @@ import { createRoot } from 'react-dom/client'
 import { HashRouter } from 'react-router-dom'
 import './index.css'
 import App from './App.tsx'
+import { captureInstallPrompt } from './install'
+
+// 「安裝到主畫面」提示事件只在載入初期觸發，啟動時就先接住（首頁卡片與設定頁共用）。
+captureInstallPrompt()
 
 // PWA：註冊 Service Worker（可安裝 + 之後的推播通知都靠它）。
 // BASE_URL 在正式站是 /Family/，本機 dev 也一樣（vite.config 的 base 設定）。

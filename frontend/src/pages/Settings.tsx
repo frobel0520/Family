@@ -5,29 +5,7 @@ import type { Profile } from "../types";
 import { disablePush, enablePush, getCurrentSubscription, pushSupported } from "../push";
 import { fileToSquareJpegDataUrl } from "../fileToDataUrl";
 import { Avatar } from "../components/Avatar";
-
-/** 是否已經以「已安裝的 App」模式開啟（主畫面圖示點進來的） */
-function isStandalone(): boolean {
-	return (
-		window.matchMedia("(display-mode: standalone)").matches ||
-		// iOS Safari 專屬屬性
-		(navigator as { standalone?: boolean }).standalone === true
-	);
-}
-
-type Platform = "ios" | "android" | "other";
-
-function detectPlatform(): Platform {
-	const ua = navigator.userAgent;
-	if (/iPhone|iPad|iPod/.test(ua)) return "ios";
-	if (/Android/.test(ua)) return "android";
-	return "other";
-}
-
-/** Chrome/Edge 的 beforeinstallprompt 事件（TS 內建型別沒有它） */
-interface BeforeInstallPromptEvent extends Event {
-	prompt: () => Promise<void>;
-}
+import { detectPlatform, isStandalone, useInstallPrompt, type BeforeInstallPromptEvent, type Platform } from "../install";
 
 /** 個人資料：暱稱 + 大頭貼（Google 或自己上傳） */
 function ProfileSection() {
@@ -289,16 +267,7 @@ function InstallSection({
 export function Settings() {
 	const [platform] = useState<Platform>(detectPlatform);
 	const [installed] = useState<boolean>(isStandalone);
-	const [installEvent, setInstallEvent] = useState<BeforeInstallPromptEvent | null>(null);
-
-	useEffect(() => {
-		const handler = (e: Event) => {
-			e.preventDefault();
-			setInstallEvent(e as BeforeInstallPromptEvent);
-		};
-		window.addEventListener("beforeinstallprompt", handler);
-		return () => window.removeEventListener("beforeinstallprompt", handler);
-	}, []);
+	const installEvent = useInstallPrompt();
 
 	return (
 		<div className="page install-page">
