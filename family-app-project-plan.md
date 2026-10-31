@@ -19,7 +19,7 @@
 
 | 層級 | 選用技術 | 說明 |
 |---|---|---|
-| 前端 | React.js | 部署在 GitHub Pages（靜態網站） |
+| 前端 | React.js | 由 Cloudflare Worker static assets 提供，與 API 同源（2026-10-31 起，見 [ADR-001](docs/adr-001-worker-same-origin-frontend.md)；原本部署在 GitHub Pages） |
 | 後端 | 無傳統後端伺服器；用 **Cloudflare Worker** 當輕量中介層 | 因為 GitHub Pages 純靜態，無法執行 Python/Node 等 server-side 程式，也無法安全處理 OAuth 的 client secret 交換 |
 | 資料庫 | 無獨立資料庫，**資料存在本專案 GitHub repo 內的 JSON 檔** | 符合「只 refer 專案內檔案」的原始需求 |
 | 身份驗證 | **Google OAuth**（透過 Cloudflare Worker 中介） | 家人用自己的 Google 帳號登入即可標示身份，**不需要 GitHub 帳號、也不需要成為 repo collaborator**（v1 曾用 GitHub OAuth，但家人不一定有 GitHub 帳號，實測登不進去才改回符合本節最初設定的 Google 帳號） |
@@ -46,7 +46,7 @@
 3. 前端把 `code` 傳給 Cloudflare Worker（`POST /api/auth/callback`）
 4. Worker 用 `Client Secret` 向 Google 交換 `access_token`，並取得使用者資訊（name、email、頭像）
 4.5. Worker 檢查登入權限——email 等於 `OWNER_EMAIL`（Worker secret，只有一組，代表你自己）就一定放行；否則查 `data/access.json` 的 `approved` 清單，在名單上才放行。**都不是的話不會直接拒絕**，而是把這次申請（email/name/頭像/時間）加進 `access.json` 的 `pending` 佇列，回應「已送出申請，請等待同意」，不發 session。你（`OWNER_EMAIL`）登入後可以在 `/admin` 頁面看到待審核清單，按「同意」才會把對方加進 `approved`。這是刻意選的設計——不想維護一份寫死的名單，而是每個新面孔都要你親自同意
-5. Worker 簽發一組短期 session（JWT）回給前端，前端存在瀏覽器裡代表「已登入」
+5. Worker 簽發 session（JWT），放在 HttpOnly cookie，前端 JS 讀不到（2026-10-31 起，見 [ADR-001](docs/adr-001-worker-same-origin-frontend.md)；原本存在 localStorage）
 6. 之後家人做以下任一動作時，前端呼叫 Worker 對應 API，並帶上 session：
    - 新增/編輯佈告欄留言 → `POST /api/board`
    - 上傳食譜照片 → `POST /api/recipes`
@@ -160,8 +160,7 @@ repo/
 
 ## 6. 部署方式
 
-- 前端（React）：GitHub Actions，於 `main` branch 有更新時自動 `npm run build`，部署到 `gh-pages` branch 或 `docs/` 目錄，由 GitHub Pages 讀取
-- 後端中介層（Cloudflare Worker）：獨立部署（`wrangler deploy`），與 GitHub Pages 分開管理，只需部署一次，之後有邏輯異動再重新部署
+- 2026-10-31 起（[ADR-001](docs/adr-001-worker-same-origin-frontend.md)）：`publish-worker.yml` 把前端 build 到 `worker/public/Family`，和 Worker 一起 `wrangler deploy`；舊 GitHub Pages 網址只發布轉址頁（`deploy.yml`）。
 
 ---
 
