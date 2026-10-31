@@ -1,6 +1,6 @@
 # ADR-001：前端改由 Family Worker 同源提供，session 改用 HttpOnly cookie
 
-- 狀態：提案（2026-10-31），待擁有者核准與正式部署驗收
+- 狀態：已核准並部署（2026-10-31）；`JWT_SECRET` 已輪替。正式環境頁面載入與 API 延遲、家人手機實測待驗收
 - 相關：跨專案資安檢查 SEC-P1-20261031；取代 `family-app-project-plan.md` 第 2、3、6 節中「前端部署在 GitHub Pages、session 存在瀏覽器」的做法
 
 ## 背景

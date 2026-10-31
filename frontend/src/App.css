@@ -948,6 +948,49 @@
 	margin-top: 1rem;
 }
 
+/* 首頁設定小幫手卡片（安裝到主畫面、開啟通知） */
+.setup-cards {
+	max-width: 30rem;
+	margin-bottom: 1rem;
+}
+
+.setup-cards:empty {
+	display: none;
+}
+
+.setup-card {
+	border-color: var(--accent);
+}
+
+.setup-card p {
+	margin: 0 0 0.7rem;
+	color: var(--text);
+	font-size: 1.05rem;
+	line-height: 1.6;
+}
+
+.setup-card ol {
+	font-size: 1.05rem;
+	line-height: 1.6;
+}
+
+.setup-card-primary {
+	display: block;
+	width: 100%;
+	font-size: 1.15rem;
+	padding: 0.85rem 1rem;
+}
+
+.setup-card-later {
+	margin-top: 0.4rem;
+	background: transparent;
+	color: var(--text-soft);
+	border: none;
+	padding: 0.3rem 0;
+	font-size: 0.95rem;
+	text-decoration: underline;
+}
+
 .install-section h2 {
 	font-size: 1.05rem;
 	margin: 0 0 0.6rem;

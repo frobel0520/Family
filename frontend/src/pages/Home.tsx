@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { HomeSetupCards } from "../components/HomeSetupCards";
 
 const ENTRIES = [
 	{ to: "/board", icon: "📌", title: "佈告欄", desc: "看看家人留了什麼話" },
@@ -12,6 +13,7 @@ export function Home() {
 	return (
 		<div className="page">
 			<h1>今天想做什麼？</h1>
+			<HomeSetupCards />
 			<div className="home-entries">
 				{ENTRIES.map((entry) => (
 					<Link key={entry.to} to={entry.to} className="home-entry">
