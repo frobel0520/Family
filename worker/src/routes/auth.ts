@@ -38,6 +38,10 @@ export async function handleAuthCallback(request: Request, env: Env, ctx: Execut
 
 		const access = await checkAccess(env, user);
 		if (!access.allowed) {
+			if (access.queueFull) {
+				// 佇列滿了：不寫入、不推播，避免被大量帳號灌爆
+				return jsonResponse({ error: "目前登入申請已達上限，請直接聯絡管理員。", pending: false }, 403);
+			}
 			// 第一次申請（不是 pending 中重試）→ 推播通知擁有者去審核
 			if (!access.pending) {
 				ctx.waitUntil(
