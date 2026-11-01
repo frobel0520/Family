@@ -25,6 +25,8 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
+      - name: Dependency audit (high/critical fails)
+        run: npm audit --audit-level=high
       - run: npm run lint
       - run: npm run build
   worker:
@@ -43,6 +45,8 @@ jobs:
           cache: npm
           cache-dependency-path: worker/package-lock.json
       - run: npm ci
+      - name: Dependency audit (high/critical fails)
+        run: npm audit --audit-level=high
       - run: npx tsc --noEmit
       - run: npm test -- --run
       - run: node --test scripts/publish-worker-ci.check.mjs
