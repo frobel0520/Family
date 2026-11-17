@@ -40,6 +40,21 @@ jobs:
           mkdir -p site
           sed "s#__FAMILY_APP_URL__#${FAMILY_APP_URL}#g" pages-redirect/index.html > site/index.html
           if grep -q '__FAMILY_APP_URL__' site/index.html; then echo "placeholder not replaced"; exit 1; fi
+          python3 - <<'PY'
+          import base64, hashlib, pathlib, re
+          p = pathlib.Path("site/index.html")
+          html = p.read_text(encoding="utf-8")
+          scripts = re.findall(r"<script>([\s\S]*?)</script>", html)
+          assert len(scripts) >= 1, "expected inline scripts"
+          hashes = " ".join(
+              f"'sha256-{base64.b64encode(hashlib.sha256(s.replace(chr(13)+chr(10), chr(10)).encode('utf-8')).digest()).decode('ascii')}'"
+              for s in scripts
+          )
+          assert "__CSP_SCRIPT_HASHES__" in html, "missing CSP placeholder"
+          html = html.replace("__CSP_SCRIPT_HASHES__", hashes, 1)
+          assert "__CSP_SCRIPT_HASHES__" not in html
+          p.write_text(html, encoding="utf-8")
+          PY
           cp site/index.html site/404.html
       - uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5
       - uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3
