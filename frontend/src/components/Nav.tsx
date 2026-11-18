@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { NavLink } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { Avatar } from "./Avatar";
@@ -12,9 +13,12 @@ const TABS = [
 
 export function Nav() {
 	const { session, login, logout } = useAuth();
+	const [logoutError, setLogoutError] = useState(false);
 	const handleLogout = () => {
+		setLogoutError(false);
 		logout().catch(() => {
-			window.alert("登出失敗，請確認網路連線後再試一次。");
+			// 不用 window.alert：非阻塞提示，使用者可以繼續操作或關閉
+			setLogoutError(true);
 		});
 	};
 	const tabs = session?.isOwner ? [...TABS, { to: "/admin", icon: "🛡️", label: "審核" }] : TABS;
@@ -40,6 +44,15 @@ export function Nav() {
 					)}
 				</div>
 			</header>
+
+			{logoutError ? (
+				<div className="logout-error" role="alert">
+					<span>登出失敗，請確認網路連線後再試一次。</span>
+					<button type="button" onClick={() => setLogoutError(false)}>
+						關閉
+					</button>
+				</div>
+			) : null}
 
 			<nav className="tabs">
 				{tabs.map((tab) => (
