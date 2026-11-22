@@ -25,7 +25,7 @@
 - 不開 CORS。改資料的請求必須帶本 Worker 的 `Origin`（同站的其他 `*.workers.dev` 也擋）。
 - OAuth `redirect_uri` 只接受本 Worker 的 `/Family/`。
 - 頁面加 CSP、`X-Frame-Options: DENY` 等標頭（`worker/public/_headers`）。
-- 舊 Pages 網址只發布轉址頁：清掉舊版 `localStorage` token，導到 repository variable `FAMILY_APP_URL`。
+- 舊 Pages 網址只發布轉址頁：清掉舊版 `localStorage` token，導到 repository variable `FAMILY_APP_URL`。2026-11-22 使用者全數轉移後退役：移除轉址頁與 `deploy.yml`，關閉 GitHub Pages；`FAMILY_APP_URL` 變數不再使用。
 - 前端與 Worker 由 `publish-worker.yml` 一起建置、一起發布，不再有兩邊版本不同步的情況。
 
 ## 取捨與限制

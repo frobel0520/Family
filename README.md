@@ -151,5 +151,5 @@ Both need their own `wrangler secret` / `.env` values (Google OAuth client, a Gi
 ## Deployment
 
 - **Frontend + Worker** ship together: `publish-worker.yml` builds the frontend into `worker/public/Family` and runs `wrangler deploy` (owner, `main`, `production` environment only), so they can no longer drift out of sync.
-- **Old GitHub Pages URL** only serves a redirect page (`deploy.yml`, repository variable `FAMILY_APP_URL`) that clears the legacy `localStorage` token and forwards to the Worker URL.
+- **Old GitHub Pages URL** was retired on 2026-11-22 after all users moved to the Worker URL; the redirect page (`deploy.yml`, `pages-redirect/`) and GitHub Pages were removed.
 - `frontend/index.html` loads the Harbor maintenance script (`data-project="family"`, since 2026-09-15): Harbor can switch on a full-screen maintenance page or a banner, and the app loads normally if Harbor is unreachable.
