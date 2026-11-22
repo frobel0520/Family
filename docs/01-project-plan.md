@@ -36,7 +36,7 @@ Family 是專為家庭成員設計的私人可安裝網頁應用（PWA），提�
 
 - **前端 PWA（`frontend/`）**：React 19 + React Router (`HashRouter`) + Vite 8，涵蓋首頁（`Home`）、留言板（`Board`）、食譜（`Recipes`）、點餐（`Orders`）、行事曆（`Calendar`）、設定（`Settings`）、管理審核（`Admin`）與 OAuth 回呼（`AuthCallback`）。
 - **後端 Worker（`worker/`）**：提供完整 `/api/*` 路由、同源靜態資產託管（`worker/public/Family/`）、Web Push 推播（RFC 8291/8292）與每 5 分鐘執行一次的 Cron 行事曆提醒。
-- **舊網址導流（`pages-redirect/`）**：舊 GitHub Pages 網址改為靜態導流頁，清除舊版 `localStorage` session 並導向新 Worker 同源網址。
+- **舊網址導流（已退役）**：舊 GitHub Pages 網址曾以靜態導流頁清除舊版 `localStorage` session 並導向新 Worker 同源網址；2026-11-22 確認使用者全數轉移後，移除 `pages-redirect/`、`deploy.yml` 並關閉 GitHub Pages。
 
 ### 4.2 明確排除
 
