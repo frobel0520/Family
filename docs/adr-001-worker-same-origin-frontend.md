@@ -43,7 +43,7 @@
 ## 效能
 
 - 既有 fixture 測試量測 `/api/me`（含名單檢查）暖啟動 50 筆樣本的 p50／p95，門檻 p95 < 100 ms，改版後仍通過；這是 Miniflare fixture，不代表正式環境延遲。
-- 正式環境的頁面載入與 API 延遲：**待驗收**，部署後量測並記錄。
+- 正式環境公開首頁與靜態資產已於 2026-11-23 完成小樣本量測（見 [`docs/evidence/perf-same-origin-20261123.md`](evidence/perf-same-origin-20261123.md)）；因無未登入公開唯讀 API，已登入 `/api/*` 延遲與家人手機實測仍待擁有者授權量測。
 
 ## 上線順序與 rollback
 
