@@ -4,7 +4,7 @@
 
 ## 下一步
 
-- [ ] 【高】SEC-P1-20261031（[ADR-001](docs/adr-001-worker-same-origin-frontend.md)）：2026-10-31 已部署到 Worker，舊 Pages 網址改為轉址頁，Actions secrets／variables 與 OAuth 重新導向 URI 已設定，`JWT_SECRET` 已輪替。待驗：正式環境頁面載入與 API 延遲量測、家人手機實測（舊圖示引導頁 → 登入 → 加入主畫面 → 開啟通知，#15）。
+- [ ] 【高】SEC-P1-20261031（[ADR-001](docs/adr-001-worker-same-origin-frontend.md)）：2026-10-31 已部署到 Worker，2026-11-22 已退役舊 Pages 轉址頁，`JWT_SECRET` 已輪替；2026-11-23 已補齊公開同源首頁與靜態資產效能實測（[perf-same-origin-20261123.md](docs/evidence/perf-same-origin-20261123.md)）。待驗：需授權之已登入 `/api/*` 延遲量測、家人手機實測（#15）。
 - [ ] 【中】手機PWA實測：確認安裝、從主畫面開啟及通知權限流程；既有本機／瀏覽器結果不代替家人真機回報。
 - [ ] 【中】行事曆首次真實提醒送達仍待自然使用證據；10/29唯讀account audit已確認原每5分鐘Cron已註冊，註冊及calendar-cron測試不等於送達，不為驗收發推播。
 - [ ] 【低】佈告欄文字編輯#7已合併、19項回歸與完整frontend／Worker CI通過；原作者限制、版本衝突409保留草稿、保留圖片／留言／回應且不通知。#8／#9發布入口與前置工作目錄修正已合併；run40818546178回MISSING_ACTIONS_BINDINGS，Worker未發布，正式編輯待驗。
