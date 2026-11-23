@@ -7,9 +7,11 @@
 
 /Family/
   Cache-Control: no-cache
+  Cross-Origin-Opener-Policy: same-origin
 
 /Family/index.html
   Cache-Control: no-cache
+  Cross-Origin-Opener-Policy: same-origin
 
 /Family/sw.js
   Cache-Control: no-cache
