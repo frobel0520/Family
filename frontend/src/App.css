@@ -436,7 +436,7 @@
 }
 
 .month-cell.today .month-cell-day {
-	background: var(--accent);
+	background: var(--accent-fill);
 	color: var(--accent-text);
 	border-radius: 50%;
 	width: 1.4rem;
@@ -1116,8 +1116,9 @@
 }
 
 .confirm-dialog-danger {
-	background: var(--danger, #c0392b);
-	border-color: var(--danger, #c0392b);
+	background: var(--danger);
+	border-color: var(--danger);
+	color: var(--danger-text);
 }
 
 /* ---------- Category filter pills ---------- */
@@ -1143,8 +1144,8 @@
 }
 
 .category-filter button.active {
-	background: var(--accent);
-	border-color: var(--accent);
+	background: var(--accent-fill);
+	border-color: var(--accent-fill);
 	color: var(--accent-text);
 	font-weight: 700;
 }
