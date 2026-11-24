@@ -2,6 +2,10 @@
 
 更新：2026-10-29（Asia/Taipei）。本輪貼文文字編輯#7已合併、前端Pages已發布；Worker發布因本repo既有Actions bindings缺少而受阻，功能先以能力探測隱藏。沒有寄送推播或改寫正式產品資料。產品與既有發布紀錄見README及下方固定版本歷史，不以本次文件更新宣稱正式驗收完成。
 
+## 2026-11-25 手機首頁
+
+安裝提示預設收合，保留 Android 與 iOS 教學及「稍後再說」。本機 Chromium 的 375 px Android fixture 量得收合高度約 56 px，並確認展開、合成安裝事件與重新整理後維持略過。
+
 ## 下一步
 
 - [x] 【高】SEC-P1-20261031（[ADR-001](docs/adr-001-worker-same-origin-frontend.md)）：Worker 已部署，舊 Pages 轉址已退役；Owner 回報 #15 手機流程實測完成。[正式首頁與登入前後 API 已量測](docs/evidence/2026-11-24-production-latency.md)，登入 `/api/me` p50／p95 為 80／102 ms。
