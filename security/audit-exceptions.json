@@ -1,9 +1,1 @@
-[
-  {
-    "id": "GHSA-fc5q-39xc-vjpf",
-    "package": "picomatch",
-    "expires": "2026-12-31",
-    "reason": "picomatch <= 4.0.7 ReDoS（extglob），2026-11-17 公告更新後尚無修正版；只經由 vite／vitest 等建置與測試工具引入，處理的 glob 皆為 repo 內固定字串，不接受使用者輸入。修正版釋出後升級並移除本例外。",
-    "change_request": "CR-AUDIT-20261118"
-  }
-]
+[]
