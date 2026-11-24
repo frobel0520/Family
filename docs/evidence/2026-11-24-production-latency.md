@@ -1,0 +1,19 @@
+# Family 正式站延遲基準
+
+2026-11-24 11:21（台灣時間）完成。正式 Worker 發布紀錄對應 `a936b84`，量測時首頁回傳該版本新增的 COOP 標頭。請求經 Cloudflare SIN 節點，首頁走 HTTP/3。[Worker 發布紀錄](https://github.com/frobel0520/Family/actions/runs/45131422597)
+
+在 Windows x64、Intel Family 6 Model 151、Headless Chrome 157（1280 × 800）以單一新瀏覽器設定檔依序取樣，使用瀏覽器 Performance API 記錄毫秒，分位數採 nearest-rank。停用 Service Worker 介入；冷快取停用瀏覽器 HTTP cache，暖快取啟用後先預熱一輪。兩組可重用網路連線，未控制 Cloudflare Worker 冷啟動。API 同源、未帶 session、停用快取，捨棄前兩次暖身，計時至回應本文讀取完成。
+
+| 正式站指標 | 樣本數 | p50 | p95 | 最大值 |
+|---|---:|---:|---:|---:|
+| 首頁 TTFB，冷快取 | 20 | 74 ms | 128 ms | 192 ms |
+| 首頁 LCP，冷快取 | 20 | 320 ms | 376 ms | 576 ms |
+| 首頁 load，冷快取 | 20 | 183 ms | 236 ms | 347 ms |
+| 首頁 TTFB，暖快取 | 20 | 72 ms | 78 ms | 79 ms |
+| 首頁 LCP，暖快取 | 20 | 296 ms | 316 ms | 320 ms |
+| 首頁 load，暖快取 | 20 | 165 ms | 170 ms | 173 ms |
+| `GET /api/me` 未登入，回應本文讀完 | 50 | 67 ms | 73 ms | 109 ms |
+
+- 首頁所有樣本皆 HTTP 200；API 50 筆皆為預期 HTTP 401。兩者均未見非預期 HTTP 狀態。樣本為單裝置、單測點、串行請求。
+- 正式環境尚無核定延遲門檻，本次建立基準。登入後的 `/api/me` HTTP 200 與名單檢查耗時待量測；現行 p95 < 100 ms 門檻適用於 Miniflare fixture。
+- Owner 回報 #15 手機流程已實測完成。此處只記錄回報，未取得裝置別紀錄、通知事件或食譜操作證據。

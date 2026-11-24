@@ -4,7 +4,7 @@
 |---|---|
 | 文件版本 | 1.0 |
 | 文件日期 | 2026-11-14 |
-| 狀態 | 核心功能與安全架構已部署上線；正式環境真機與效能延遲待最後驗收 |
+| 狀態 | 已部署上線；#15 手機流程已收到 Owner 實測回報，正式首頁與未登入 API 已量測，登入 API 延遲待驗 |
 | 專案級別 | 產品級 |
 | 依據 | Harbor `standards/DevelopmentStandards.md`、`standards/DeploymentHandbook.md` |
 
@@ -19,8 +19,8 @@
 | 合成效能基準 | Miniflare 50 次暖啟動 `/api/me`（含 `access.json` 檢核）p95 `< 100ms` | 通過（合成） | `docs/adr-001-worker-same-origin-frontend.md`、`security/reports/2026-10-24-p1-remediation.json` |
 | 發布權限控管 | `publish-worker.yml` 強制 `refs/heads/main` 且 `GITHUB_ACTOR == GITHUB_REPOSITORY_OWNER` | 通過 | `.github/workflows/publish-worker.yml` |
 | 零月費確認 | Workers、KV、GitHub API、Pages 導流皆位於免費額度內，無付費服務 | 通過 | `worker/wrangler.jsonc`、`docs/03-system-design.md` |
-| 正式環境效能驗收 | 正式 Worker 網址之頁面載入與 API 延遲（p50 / p95）實測 | 待驗收 | 記錄於 `adr-001`（#15） |
-| 家庭成員真機驗收 | iOS Safari / Android Chrome 手機實際登入、PWA 安裝、推播與食譜操作 | 待驗收 | 記錄於 `adr-001`（#15） |
+| 正式環境效能驗收 | 正式 Worker 網址之頁面載入與 API 延遲（p50 / p95）實測 | 首頁與 HTTP 401 已量測；登入 HTTP 200 待量測，正式延遲門檻待訂 | [正式站延遲基準](evidence/2026-11-24-production-latency.md) |
+| 家庭成員真機驗收 | iOS Safari / Android Chrome 手機實際登入、PWA 安裝、推播與食譜操作 | #15 手機流程已收到 Owner 實測回報；裝置別、推播送達與食譜操作待查證 | [實測回報範圍](evidence/2026-11-24-production-latency.md) |
 | 食譜名稱待核對 | 7 筆手寫來源待補或編碼異常之食譜名稱人工確認 | 待處理 | `docs/recipe-name-review.md` |
 
 ## 2. 交接與進度上限說明

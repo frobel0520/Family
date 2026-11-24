@@ -1,6 +1,6 @@
 # ADR-001：前端改由 Family Worker 同源提供，session 改用 HttpOnly cookie
 
-- 狀態：已核准並部署（2026-10-31）；`JWT_SECRET` 已輪替。正式環境頁面載入與 API 延遲、家人手機實測待驗收
+- 狀態：已核准並部署（2026-10-31）；`JWT_SECRET` 已輪替。Owner 已回報 #15 手機流程實測完成。正式首頁與未登入 API 已量測，登入 API 延遲待驗
 - 相關：跨專案資安檢查 SEC-P1-20261031；取代 `family-app-project-plan.md` 第 2、3、6 節中「前端部署在 GitHub Pages、session 存在瀏覽器」的做法
 
 ## 背景
@@ -43,7 +43,7 @@
 ## 效能
 
 - 既有 fixture 測試量測 `/api/me`（含名單檢查）暖啟動 50 筆樣本的 p50／p95，門檻 p95 < 100 ms，改版後仍通過；這是 Miniflare fixture，不代表正式環境延遲。
-- 正式環境的頁面載入與 API 延遲：**待驗收**，部署後量測並記錄。
+- 正式環境量測（2026-11-24）：首頁 LCP p50／p95 冷快取為 320／376 ms、暖快取為 296／316 ms；未登入 `/api/me`（HTTP 401）為 67／73 ms。登入路徑待測。[量測紀錄](evidence/2026-11-24-production-latency.md)
 
 ## 上線順序與 rollback
 
