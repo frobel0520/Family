@@ -4,6 +4,10 @@ import { HashRouter } from 'react-router-dom'
 import './index.css'
 import App from './App.tsx'
 import { captureInstallPrompt } from './install'
+import { initTheme } from './theme'
+
+// 在畫面渲染前套用佈景主題（預設淺色），避免先閃一下錯的顏色。
+initTheme()
 
 // 「安裝到主畫面」提示事件只在載入初期觸發，啟動時就先接住（首頁卡片與設定頁共用）。
 captureInstallPrompt()

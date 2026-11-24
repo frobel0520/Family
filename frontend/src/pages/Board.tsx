@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { fileToResizedJpegDataUrl } from "../fileToDataUrl";
+import { CameraIcon } from "../components/Icons";
 import { useAuth } from "../auth/AuthContext";
 import {
 	createBoardComment,
@@ -298,7 +299,8 @@ export function Board() {
 							disabled={submitting || attachedImages.length >= MAX_IMAGES}
 							onClick={() => fileInput.current?.click()}
 						>
-							📷 {attachedImages.length > 0 ? `再加圖片（${attachedImages.length}/${MAX_IMAGES}）` : "附上圖片"}
+							<CameraIcon />
+							{attachedImages.length > 0 ? `再加圖片（${attachedImages.length}/${MAX_IMAGES}）` : "附上圖片"}
 						</button>
 						<input
 							ref={fileInput}
@@ -481,7 +483,7 @@ export function Board() {
 												disabled={draftImages.length >= MAX_IMAGES}
 												onClick={() => commentFileInputs.current[post.id]?.click()}
 											>
-												📷
+												<CameraIcon />
 											</button>
 											<input
 												ref={(el) => {

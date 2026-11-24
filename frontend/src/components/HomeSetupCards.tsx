@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "../auth/AuthContext";
 import { detectPlatform, isIosNonSafari, isStandalone, useInstallPrompt } from "../install";
 import { enablePush, getCurrentSubscription, pushSupported } from "../push";
+import { BellIcon, DownloadIcon, PhoneIcon } from "./Icons";
 
 /**
  * 首頁的「設定小幫手」卡片：從舊網址搬過來的家人，不用自己去設定頁找就能完成
@@ -54,12 +55,16 @@ function InstallCard() {
 
 	return (
 		<section className="install-section setup-card">
-			<h2>📱 把 Family 加到手機主畫面</h2>
+			<h2>
+				<PhoneIcon />
+				把 Family 加到手機主畫面
+			</h2>
 			{platform === "android" && installEvent && (
 				<>
 					<p>點下面的按鈕，再按「安裝」就完成了。</p>
 					<button type="button" className="setup-card-primary" onClick={install}>
-						⬇️ 一鍵安裝
+						<DownloadIcon />
+						一鍵安裝
 					</button>
 				</>
 			)}
@@ -85,7 +90,7 @@ function InstallCard() {
 			{platform === "ios" && !isIosNonSafari() && (
 				<ol>
 					<li>
-						點畫面下方的 <strong>分享按鈕</strong>（方框加向上箭頭 ⬆️）
+						點畫面下方的 <strong>分享按鈕</strong>（方框加向上箭頭）
 					</li>
 					<li>
 						往下滑，點 <strong>「加入主畫面」</strong>
@@ -143,11 +148,21 @@ function NotificationCard() {
 
 	return (
 		<section className="install-section setup-card">
-			<h2>🔔 開啟通知</h2>
+			<h2>
+				<BellIcon />
+				開啟通知
+			</h2>
 			<p>家人有新貼文、留言或點菜時，這台手機會跳出通知。</p>
 			{needsSetup && (
 				<button type="button" className="setup-card-primary" disabled={busy} onClick={turnOn}>
-					{busy ? "處理中…" : "🔔 開啟通知"}
+					{busy ? (
+						"處理中…"
+					) : (
+						<>
+							<BellIcon />
+							開啟通知
+						</>
+					)}
 				</button>
 			)}
 			{error && <p className="error">{error}</p>}
