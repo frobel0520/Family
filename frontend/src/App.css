@@ -12,6 +12,9 @@
 	position: sticky;
 	top: 0;
 	z-index: 10;
+	width: 100%;
+	max-width: var(--column);
+	margin: 0 auto;
 }
 
 .brand {
@@ -156,7 +159,11 @@
 
 /* ---------- Page shell ---------- */
 
+/* 電腦版與 nihongo-lab 相同：頂欄、分頁與內容在同一條置中欄位。 */
 .page {
+	width: 100%;
+	max-width: var(--column);
+	margin: 0 auto;
 	padding: 1.25rem 1rem 2.5rem;
 }
 
@@ -199,7 +206,6 @@
 	display: flex;
 	flex-direction: column;
 	gap: 0.9rem;
-	max-width: 30rem;
 }
 
 .home-entry {
@@ -267,7 +273,6 @@
 	display: flex;
 	flex-direction: column;
 	gap: 0.6rem;
-	max-width: 34rem;
 	margin-bottom: 1.5rem;
 }
 
@@ -998,9 +1003,6 @@
 
 /* ---------- Install (PWA) page ---------- */
 
-.install-page {
-	max-width: 34rem;
-}
 
 .install-section {
 	background: var(--card);
@@ -1013,7 +1015,6 @@
 
 /* 首頁設定小幫手卡片（安裝到主畫面、開啟通知） */
 .setup-cards {
-	max-width: 30rem;
 	margin-bottom: 1rem;
 }
 

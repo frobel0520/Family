@@ -344,7 +344,7 @@ export function Settings() {
 	const installEvent = useInstallPrompt();
 
 	return (
-		<div className="page install-page">
+		<div className="page">
 			<h1>設定</h1>
 			<ProfileSection />
 			<ThemeSection />
