@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import type { Recipe } from "../types";
 import { RecipePhoto } from "./RecipePhoto";
+import { BookIcon } from "./Icons";
 import { RECIPE_IMAGE_MAX_SIDE, fileToResizedJpegDataUrl } from "../fileToDataUrl";
 
 /**
@@ -44,7 +45,8 @@ export function RecipeCard({
 				<RecipePhoto photoUrl={recipe.photoUrl} name={recipe.name} />
 				{recipe.recipeUrl ? (
 					<button type="button" className="recipe-corner-btn" onClick={() => onViewRecipe(recipe)}>
-						📖 食譜
+						<BookIcon />
+						食譜
 					</button>
 				) : onUploadRecipe ? (
 					<>

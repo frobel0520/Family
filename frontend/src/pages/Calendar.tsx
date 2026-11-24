@@ -188,7 +188,7 @@ export function Calendar() {
 		);
 		const [date, time] = event.remindAt.split("T");
 		const sameDay = date === event.date;
-		return `🔔 ${sameDay ? time : `${date} ${time}`} 提醒 ${names.join("、")}`;
+		return `${sameDay ? time : `${date} ${time}`} 提醒 ${names.join("、")}`;
 	}
 
 	if (!session) {

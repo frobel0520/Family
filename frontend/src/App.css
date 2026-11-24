@@ -5,9 +5,10 @@
 	align-items: center;
 	justify-content: space-between;
 	gap: 1rem;
-	padding: 0.7rem 1rem;
-	background: var(--card);
-	border-bottom: 1px solid var(--border);
+	min-height: 56px;
+	padding: 0.4rem 1rem;
+	padding-top: calc(0.4rem + env(safe-area-inset-top));
+	background: var(--bg);
 	position: sticky;
 	top: 0;
 	z-index: 10;
@@ -16,7 +17,7 @@
 .brand {
 	font-weight: 700;
 	color: var(--text-h);
-	font-size: 1.05rem;
+	font-size: 1.25rem;
 	white-space: nowrap;
 }
 
@@ -62,65 +63,90 @@
 
 /* ---------- Tabs (page links) ---------- */
 
+/* 與 nihongo-lab 相同：桌機是一排膠囊按鈕，選到的是金色；手機固定在底部，選到的圖示有圓角底色。 */
 .tabs {
 	display: flex;
-	gap: 0.25rem;
-	padding: 0.4rem 0.75rem;
-	background: var(--card);
-	border-bottom: 1px solid var(--border);
+	flex-wrap: wrap;
+	justify-content: center;
+	gap: 8px;
+	padding: 4px 16px 8px;
+	background: var(--bg);
 }
 
 .tabs a {
 	display: flex;
 	align-items: center;
-	gap: 0.35rem;
-	padding: 0.45rem 0.9rem;
+	gap: 8px;
+	min-height: 44px;
+	padding: 0 18px;
+	border: 1px solid var(--border);
 	border-radius: 999px;
+	background: var(--card);
 	text-decoration: none;
-	color: var(--text-soft);
-	font-size: 0.95rem;
-	transition: background 0.15s, color 0.15s;
+	color: var(--text);
+	font-size: 0.92rem;
+	transition: background 0.15s, border-color 0.15s;
+}
+
+.tabs a .icon {
+	width: 20px;
+	height: 20px;
 }
 
 .tabs a:hover {
-	color: var(--accent);
+	border-color: var(--accent);
 }
 
 .tabs a.active {
-	background: var(--accent-soft);
-	color: var(--accent);
+	border-color: var(--accent-fill);
+	background: var(--accent-fill);
+	color: var(--accent-text);
 	font-weight: 700;
 }
 
-.tab-icon {
-	font-size: 1.1rem;
-	line-height: 1;
-}
-
-/* On phones the tabs dock to the bottom like an app tab bar. */
 @media (max-width: 640px) {
 	.tabs {
 		position: fixed;
-		bottom: 0;
-		left: 0;
-		right: 0;
+		inset: auto 0 0 0;
 		z-index: 10;
-		justify-content: space-around;
-		border-bottom: none;
+		flex-wrap: nowrap;
+		gap: 0;
+		padding: 0 0 env(safe-area-inset-bottom);
+		background: var(--card);
 		border-top: 1px solid var(--border);
-		padding: 0.35rem 0.5rem calc(0.35rem + env(safe-area-inset-bottom));
 	}
 
-	.tabs a {
+	.tabs a,
+	.tabs a.active {
+		flex: 1;
 		flex-direction: column;
-		gap: 0.1rem;
-		padding: 0.3rem 0.8rem;
-		font-size: 0.75rem;
-		border-radius: 12px;
+		justify-content: center;
+		gap: 2px;
+		min-height: 64px;
+		padding: 6px 0;
+		border: 0;
+		border-radius: 0;
+		background: none;
+		color: var(--text-soft);
+		font-size: 0.72rem;
 	}
 
-	.tab-icon {
-		font-size: 1.35rem;
+	.tabs a .icon {
+		box-sizing: content-box;
+		width: 24px;
+		height: 24px;
+		padding: 4px 18px;
+		border-radius: 999px;
+		transition: background 0.15s;
+	}
+
+	.tabs a.active {
+		color: var(--accent);
+		font-weight: 700;
+	}
+
+	.tabs a.active .icon {
+		background: var(--accent-soft);
 	}
 
 	main {
@@ -195,8 +221,25 @@
 }
 
 .home-entry-icon {
-	font-size: 2rem;
-	line-height: 1;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 44px;
+	height: 44px;
+	flex: none;
+	border-radius: 12px;
+	background: var(--accent-soft);
+	color: var(--accent);
+}
+
+.home-entry-text {
+	flex: 1;
+	min-width: 0;
+}
+
+.home-entry-chevron {
+	display: flex;
+	color: var(--text-soft);
 }
 
 .home-entry-title {
@@ -978,8 +1021,9 @@
 	display: none;
 }
 
+/* 同 nihongo-lab「接續學習」卡：淡金色漸層底，提醒這是要先做的事 */
 .setup-card {
-	border-color: var(--accent);
+	background: linear-gradient(154deg, var(--accent-soft), color-mix(in srgb, var(--accent-soft) 35%, var(--card)));
 }
 
 .setup-card p {
@@ -1012,6 +1056,9 @@
 }
 
 .install-section h2 {
+	display: flex;
+	align-items: center;
+	gap: 0.45rem;
 	font-size: 1.05rem;
 	margin: 0 0 0.6rem;
 	color: var(--text-h);
@@ -1130,12 +1177,23 @@
 	margin-bottom: 1.1rem;
 }
 
+.category-filter.theme-options {
+	gap: 0.4rem;
+	margin-bottom: 0.5rem;
+}
+
+.category-filter.theme-options button {
+	padding: 0.35rem 0.8rem;
+}
+
 .category-filter button {
 	background: var(--card);
 	color: var(--text);
 	border: 1px solid var(--border);
+	border-radius: 999px;
 	padding: 0.35rem 0.95rem;
 	font-size: 0.92rem;
+	font-weight: 400;
 }
 
 .category-filter button:hover:not(:disabled) {
@@ -1398,6 +1456,7 @@
 	justify-content: center;
 	font-size: 2.5rem;
 	background: var(--accent-soft);
+	color: var(--accent);
 }
 
 .recipe-name {

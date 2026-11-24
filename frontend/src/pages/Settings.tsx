@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useAuth } from "../auth/AuthContext";
 import { getProfile, updateProfile } from "../api";
 import type { Profile } from "../types";
@@ -6,6 +6,48 @@ import { disablePush, enablePush, getCurrentSubscription, pushSupported } from "
 import { fileToSquareJpegDataUrl } from "../fileToDataUrl";
 import { Avatar } from "../components/Avatar";
 import { detectPlatform, isStandalone, useInstallPrompt, type BeforeInstallPromptEvent, type Platform } from "../install";
+import { THEME_OPTIONS, readThemePreference, setThemePreference, type ThemePreference } from "../theme";
+import { AutoThemeIcon, BellIcon, BellOffIcon, CameraIcon, CheckIcon, DownloadIcon, MoonIcon, PaletteIcon, PhoneIcon, SunIcon, UserIcon } from "../components/Icons";
+
+const THEME_ICONS: Record<ThemePreference, ReactNode> = {
+	light: <SunIcon />,
+	dark: <MoonIcon />,
+	system: <AutoThemeIcon />,
+};
+
+/** 佈景主題：淺色（預設）／深色／跟隨系統，只存在這台裝置 */
+function ThemeSection() {
+	const [preference, setPreference] = useState<ThemePreference>(readThemePreference);
+
+	const choose = (next: ThemePreference) => {
+		setThemePreference(next);
+		setPreference(next);
+	};
+
+	return (
+		<section className="install-section">
+			<h2>
+				<PaletteIcon />
+				佈景主題
+			</h2>
+			<div className="category-filter theme-options" role="group" aria-label="佈景主題">
+				{THEME_OPTIONS.map((option) => (
+					<button
+						key={option.value}
+						type="button"
+						className={preference === option.value ? "active" : undefined}
+						aria-pressed={preference === option.value}
+						onClick={() => choose(option.value)}
+					>
+						{THEME_ICONS[option.value]}
+						{option.label}
+					</button>
+				))}
+			</div>
+			<p className="hint">只會改變這台裝置的顯示。</p>
+		</section>
+	);
+}
 
 /** 個人資料：暱稱 + 大頭貼（Google 或自己上傳） */
 function ProfileSection() {
@@ -31,7 +73,10 @@ function ProfileSection() {
 	if (!session) {
 		return (
 			<section className="install-section">
-				<h2>👤 個人資料</h2>
+				<h2>
+				<UserIcon />
+				個人資料
+			</h2>
 				<p className="hint">登入後才能設定暱稱與大頭貼。</p>
 			</section>
 		);
@@ -77,14 +122,18 @@ function ProfileSection() {
 
 	return (
 		<section className="install-section">
-			<h2>👤 個人資料</h2>
+			<h2>
+				<UserIcon />
+				個人資料
+			</h2>
 			{loadError && <p className="error">載入失敗：{loadError}</p>}
 
 			<div className="profile-avatar-row">
 				<Avatar name={currentName} avatar={currentAvatar} />
 				<div className="profile-avatar-actions">
 					<button type="button" disabled={saving} onClick={() => fileInput.current?.click()}>
-						📷 上傳照片
+						<CameraIcon />
+						上傳照片
 					</button>
 					{usingCustomAvatar && (
 						<button type="button" disabled={saving} onClick={() => save({ avatar: "google" })}>
@@ -124,7 +173,9 @@ function ProfileSection() {
 				</button>
 			</form>
 
-			{saved && <p className="hint">✅ 已儲存，之後的發文留言都會用新的名字/大頭貼。</p>}
+			{saved && <p className="hint ok-line">
+					<CheckIcon />
+					已儲存，之後的發文留言都會用新的名字/大頭貼。</p>}
 			{saveError && <p className="error">{saveError}</p>}
 		</section>
 	);
@@ -148,14 +199,20 @@ function NotificationSection({ installed, platform }: { installed: boolean; plat
 		if (platform === "ios" && !installed) {
 			return (
 				<section className="install-section">
-					<h2>🔔 通知</h2>
+					<h2>
+				<BellIcon />
+				通知
+			</h2>
 					<p className="hint">iPhone 要先照下面步驟「加入主畫面」，再從主畫面開啟 App，才能開啟通知。</p>
 				</section>
 			);
 		}
 		return (
 			<section className="install-section">
-				<h2>🔔 通知</h2>
+				<h2>
+				<BellIcon />
+				通知
+			</h2>
 				<p className="hint">這個瀏覽器不支援推播通知。</p>
 			</section>
 		);
@@ -164,7 +221,10 @@ function NotificationSection({ installed, platform }: { installed: boolean; plat
 	if (!session) {
 		return (
 			<section className="install-section">
-				<h2>🔔 通知</h2>
+				<h2>
+				<BellIcon />
+				通知
+			</h2>
 				<p className="hint">登入後才能開啟通知。</p>
 			</section>
 		);
@@ -191,15 +251,20 @@ function NotificationSection({ installed, platform }: { installed: boolean; plat
 
 	return (
 		<section className="install-section">
-			<h2>🔔 通知</h2>
+			<h2>
+				<BellIcon />
+				通知
+			</h2>
 			<p className="hint">
 				開啟後，這台裝置會收到：家人的新貼文與留言、點菜
 				{session.isOwner ? "、還有新的登入申請（管理員限定）" : ""}。自己的動作不會通知自己。
 			</p>
 			<button type="button" disabled={busy || subscribed === null} onClick={toggle}>
-				{subscribed === null ? "檢查中…" : busy ? "處理中…" : subscribed ? "🔕 關閉這台裝置的通知" : "🔔 開啟通知"}
+				{subscribed === null ? "檢查中…" : busy ? "處理中…" : subscribed ? (<><BellOffIcon />關閉這台裝置的通知</>) : (<><BellIcon />開啟通知</>)}
 			</button>
-			{subscribed && <p className="hint">✅ 這台裝置已開啟通知。</p>}
+			{subscribed && <p className="hint ok-line">
+					<CheckIcon />
+					這台裝置已開啟通知。</p>}
 			{error && <p className="error">{error}</p>}
 		</section>
 	);
@@ -216,13 +281,18 @@ function InstallSection({
 	installEvent: BeforeInstallPromptEvent | null;
 }) {
 	if (installed) {
-		return <p className="install-done">✅ 已安裝到主畫面，你現在就是從 App 開啟的。</p>;
+		return <p className="install-done ok-line">
+				<CheckIcon />
+				已安裝到主畫面，你現在就是從 App 開啟的。</p>;
 	}
 	return (
 		<>
 			{(platform === "ios" || platform === "other") && (
 				<section className="install-section">
-					<h2>📱 安裝到 iPhone / iPad（用 Safari 開啟）</h2>
+					<h2>
+						<PhoneIcon />
+						安裝到 iPhone / iPad（用 Safari 開啟）
+					</h2>
 					<ol>
 						<li>
 							點瀏覽器下方中間的 <strong>分享按鈕</strong>（□ 加向上箭頭）
@@ -240,10 +310,14 @@ function InstallSection({
 
 			{(platform === "android" || platform === "other") && (
 				<section className="install-section">
-					<h2>🤖 安裝到 Android（用 Chrome 開啟）</h2>
+					<h2>
+						<PhoneIcon />
+						安裝到 Android（用 Chrome 開啟）
+					</h2>
 					{installEvent ? (
 						<button type="button" onClick={() => installEvent.prompt()}>
-							⬇️ 一鍵安裝
+							<DownloadIcon />
+							一鍵安裝
 						</button>
 					) : (
 						<ol>
@@ -273,6 +347,7 @@ export function Settings() {
 		<div className="page install-page">
 			<h1>設定</h1>
 			<ProfileSection />
+			<ThemeSection />
 			<NotificationSection installed={installed} platform={platform} />
 			<InstallSection installed={installed} platform={platform} installEvent={installEvent} />
 		</div>
