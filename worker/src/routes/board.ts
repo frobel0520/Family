@@ -1,6 +1,13 @@
 import { requireSession } from "../session";
-import { readJsonArrayFile, updateJsonArrayFile, putBase64File, GithubApiError } from "../github-contents";
+import {
+	readJsonArrayFile,
+	updateJsonArrayFile,
+	putBase64File,
+	deleteFileIfExists,
+	GithubApiError,
+} from "../github-contents";
 import { BoardEditError, editBoardPost } from "../board-edit";
+import { ImageUploadError, MAX_IMAGE_BYTES, validateBase64Image } from "../image-upload";
 import { jsonResponse } from "../response";
 import { excerpt, notifyAll, notifyEmail } from "../notify";
 import { imageProxyUrl } from "../image-url";
@@ -115,15 +122,28 @@ function collectImages(body: { imageBase64?: string; imagesBase64?: unknown }): 
 	return list.slice(0, MAX_IMAGES);
 }
 
-/** 依序把圖片存進 repo（一張一個 commit）。任何一張失敗就丟錯，呼叫端不會寫 board.json。 */
+/** 依序驗證並把圖片存進 repo（一張一個 commit）。先全部驗證完才寫入，避免半套 commit。 */
 async function putImages(env: Env, images: string[], pathFor: (index: number) => string, message: string): Promise<string[]> {
+	const validated = images.map((image) => validateBase64Image(image, MAX_IMAGE_BYTES).base64);
 	const paths: string[] = [];
-	for (const [index, image] of images.entries()) {
+	for (const [index, base64] of validated.entries()) {
 		const path = pathFor(index);
-		await putBase64File(env, path, image.replace(/^data:.*;base64,/s, ""), message);
+		await putBase64File(env, path, base64, message);
 		paths.push(path);
 	}
 	return paths;
+}
+
+/** 刪貼文或留言後，盡力清除 Family-data 中對應的 images/board/... 附圖（單檔失敗不影響刪除結果）。 */
+async function deleteBoardImagesBestEffort(env: Env, paths: readonly string[], message: string): Promise<void> {
+	const uniqueBoardPaths = [...new Set(paths)].filter((p) => p.startsWith("images/board/") && !p.includes(".."));
+	for (const path of uniqueBoardPaths) {
+		try {
+			await deleteFileIfExists(env, path, message);
+		} catch {
+			// Best-effort cleanup: never fail post/comment deletion after board.json succeeded.
+		}
+	}
 }
 
 /** 通知內文：沒文字時用照片張數描述。 */
@@ -172,12 +192,20 @@ export async function handleCreateBoardPost(request: Request, env: Env, ctx: Exe
 	const postId = crypto.randomUUID();
 
 	// 先傳圖，圖傳失敗就整篇不發（不會出現「有貼文沒圖」的半套狀態）
-	const imagePaths = await putImages(
-		env,
-		images,
-		(i) => `images/board/${postId}-${i + 1}.jpg`,
-		`board: image for post by ${auth.session.name}`,
-	);
+	let imagePaths: string[];
+	try {
+		imagePaths = await putImages(
+			env,
+			images,
+			(i) => `images/board/${postId}-${i + 1}.jpg`,
+			`board: image for post by ${auth.session.name}`,
+		);
+	} catch (err) {
+		if (err instanceof ImageUploadError) {
+			return jsonResponse({ error: err.message }, err.status);
+		}
+		throw err;
+	}
 
 	const now = new Date().toISOString();
 	const newPost: BoardPost = {
@@ -247,6 +275,16 @@ export async function handleDeleteBoardPost(request: Request, env: Env): Promise
 		`board: delete post by ${target.author} (removed by ${auth.session.name})`,
 	);
 
+	const imagesToDelete = [
+		...imagePathsOf(target),
+		...(target.comments ?? []).flatMap((c) => imagePathsOf(c)),
+	];
+	await deleteBoardImagesBestEffort(
+		env,
+		imagesToDelete,
+		`board: delete image for removed post by ${target.author}`,
+	);
+
 	return jsonResponse({ ok: true });
 }
 
@@ -303,12 +341,20 @@ export async function handleCreateBoardComment(request: Request, env: Env, ctx: 
 	const commentId = crypto.randomUUID();
 
 	// 先傳圖，圖傳失敗就整則留言不送出
-	const imagePaths = await putImages(
-		env,
-		images,
-		(i) => `images/board/comments/${commentId}-${i + 1}.jpg`,
-		`board: comment image by ${auth.session.name}`,
-	);
+	let imagePaths: string[];
+	try {
+		imagePaths = await putImages(
+			env,
+			images,
+			(i) => `images/board/comments/${commentId}-${i + 1}.jpg`,
+			`board: comment image by ${auth.session.name}`,
+		);
+	} catch (err) {
+		if (err instanceof ImageUploadError) {
+			return jsonResponse({ error: err.message }, err.status);
+		}
+		throw err;
+	}
 
 	const newComment: BoardComment = {
 		id: commentId,
@@ -324,12 +370,14 @@ export async function handleCreateBoardComment(request: Request, env: Env, ctx: 
 	await updateJsonArrayFile<BoardPost>(
 		env,
 		"data/board.json",
-		(posts) =>
-			posts.map((p) => {
+		(posts) => {
+			found = false;
+			return posts.map((p) => {
 				if (p.id !== postId) return p;
 				found = true;
 				return { ...p, comments: [...(p.comments ?? []), newComment] };
-			}),
+			});
+		},
 		`board: comment by ${auth.session.name}`,
 	);
 	if (!found) {
@@ -381,8 +429,10 @@ export async function handleToggleBoardReaction(request: Request, env: Env, ctx:
 	await updateJsonArrayFile<BoardPost>(
 		env,
 		"data/board.json",
-		(posts) =>
-			posts.map((p) => {
+		(posts) => {
+			target = null;
+			updated = [];
+			return posts.map((p) => {
 				if (p.id !== postId) return p;
 				target = p;
 				updated = toggleReaction(p.reactions ?? [], emoji, {
@@ -390,7 +440,8 @@ export async function handleToggleBoardReaction(request: Request, env: Env, ctx:
 					name: auth.session.name,
 				});
 				return { ...p, reactions: updated };
-			}),
+			});
+		},
 		`board: reaction ${emoji} by ${auth.session.name}`,
 	);
 	if (!target) {
@@ -451,6 +502,12 @@ export async function handleDeleteBoardComment(request: Request, env: Env): Prom
 				p.id === postId ? { ...p, comments: (p.comments ?? []).filter((c) => c.id !== commentId) } : p,
 			),
 		`board: delete comment by ${target.author} (removed by ${auth.session.name})`,
+	);
+
+	await deleteBoardImagesBestEffort(
+		env,
+		imagePathsOf(target),
+		`board: delete image for removed comment by ${target.author}`,
 	);
 
 	return jsonResponse({ ok: true });

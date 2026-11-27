@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Route, Routes } from "react-router-dom";
 import "./App.css";
 import { AuthProvider } from "./auth/AuthContext";
+import { hasOAuthCallbackParams } from "./auth/googleOAuth";
 import { Layout } from "./components/Layout";
 import { Home } from "./pages/Home";
 import { Board } from "./pages/Board";
@@ -15,7 +16,7 @@ import { AuthCallback } from "./pages/AuthCallback";
 function App() {
 	// Google's OAuth redirect lands on the exact registered page (no #fragment),
 	// e.g. "/Family/?code=...". Handle that before the (hash-based) router mounts.
-	const [pendingCallback, setPendingCallback] = useState(() => new URLSearchParams(window.location.search).has("code"));
+	const [pendingCallback, setPendingCallback] = useState(() => hasOAuthCallbackParams(window.location.search));
 
 	return (
 		<AuthProvider>

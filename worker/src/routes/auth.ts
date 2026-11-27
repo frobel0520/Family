@@ -1,38 +1,106 @@
-import { exchangeCodeForAccessToken, fetchGoogleUser, GoogleOAuthError } from "../google-oauth";
+import {
+	computePkceS256Challenge,
+	constantTimeEqual,
+	exchangeCodeForTokens,
+	fetchGoogleUser,
+	generateOAuthRandomToken,
+	GoogleOAuthError,
+	signOAuthTransaction,
+	verifyOAuthTransaction,
+} from "../google-oauth";
 import { signSession } from "../jwt";
 import { jsonResponse } from "../response";
 import { checkAccess, isOwner } from "../access";
 import { notifyEmail } from "../notify";
 import { effectiveIdentity, getProfile, rememberGoogleIdentity } from "../profiles";
 import { SESSION_TTL_SECONDS, requireSession } from "../session";
-import { clearedSessionCookie, sessionCookie, withSessionCookie } from "../cookie";
+import {
+	OAUTH_TX_COOKIE,
+	OAUTH_TX_TTL_SECONDS,
+	clearedOAuthTxCookie,
+	clearedSessionCookie,
+	oauthTxCookie,
+	readCookie,
+	sessionCookie,
+	withCookies,
+	withSessionCookie,
+} from "../cookie";
 
 /** 前端由同一個 Worker 提供，OAuth redirect_uri 只接受這個頁面。 */
 export function expectedRedirectUri(request: Request): string {
 	return `${new URL(request.url).origin}/Family/`;
 }
 
+/**
+ * 啟動 Google OAuth 2.0 Authorization Code + PKCE (S256) + CSRF state 流程。
+ * 把 state 與 code_verifier 簽進短效 HttpOnly cookie，並 302 導向 Google 授權頁（redirect_uri 維持 /Family/）。
+ */
+export async function handleAuthStart(request: Request, env: Env): Promise<Response> {
+	if (!env.GOOGLE_CLIENT_ID || !env.JWT_SECRET) {
+		return jsonResponse({ error: "Google OAuth is not configured" }, 503);
+	}
+
+	const state = generateOAuthRandomToken(24);
+	const codeVerifier = generateOAuthRandomToken(32);
+	const codeChallenge = await computePkceS256Challenge(codeVerifier);
+	const txToken = await signOAuthTransaction({ state, codeVerifier }, env.JWT_SECRET, OAUTH_TX_TTL_SECONDS);
+
+	const authUrl = new URL("https://accounts.google.com/o/oauth2/v2/auth");
+	authUrl.searchParams.set("client_id", env.GOOGLE_CLIENT_ID);
+	authUrl.searchParams.set("redirect_uri", expectedRedirectUri(request));
+	authUrl.searchParams.set("response_type", "code");
+	authUrl.searchParams.set("scope", "openid email profile");
+	authUrl.searchParams.set("prompt", "select_account");
+	authUrl.searchParams.set("state", state);
+	authUrl.searchParams.set("code_challenge", codeChallenge);
+	authUrl.searchParams.set("code_challenge_method", "S256");
+
+	return new Response(null, {
+		status: 302,
+		headers: {
+			Location: authUrl.toString(),
+			"Set-Cookie": oauthTxCookie(txToken, OAUTH_TX_TTL_SECONDS),
+			"Cache-Control": "no-store",
+		},
+	});
+}
+
 export async function handleAuthCallback(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
-	let body: { code?: string; redirectUri?: string };
+	const clearTx = (res: Response) => withCookies(res, [clearedOAuthTxCookie()]);
+
+	let body: { code?: unknown; state?: unknown; redirectUri?: unknown };
 	try {
 		body = await request.json();
 	} catch {
-		return jsonResponse({ error: "Invalid JSON body" }, 400);
+		return clearTx(jsonResponse({ error: "Invalid JSON body" }, 400));
 	}
 
-	if (!body.code) {
-		return jsonResponse({ error: "Missing 'code'" }, 400);
+	if (typeof body.code !== "string" || !body.code) {
+		return clearTx(jsonResponse({ error: "Missing 'code'" }, 400));
 	}
 	if (body.redirectUri !== expectedRedirectUri(request)) {
-		return jsonResponse({ error: "Invalid 'redirectUri'" }, 400);
+		return clearTx(jsonResponse({ error: "Invalid 'redirectUri'" }, 400));
+	}
+	if (typeof body.state !== "string" || !body.state) {
+		return clearTx(jsonResponse({ error: "Missing 'state'" }, 400));
+	}
+
+	const txCookie = readCookie(request, OAUTH_TX_COOKIE);
+	if (!txCookie) {
+		return clearTx(jsonResponse({ error: "登入驗證已過期或遺失，請重新登入。" }, 400));
+	}
+	const tx = await verifyOAuthTransaction(txCookie, env.JWT_SECRET);
+	if (!tx || !constantTimeEqual(body.state, tx.state)) {
+		return clearTx(jsonResponse({ error: "Invalid or expired OAuth 'state'" }, 400));
 	}
 
 	try {
-		const accessToken = await exchangeCodeForAccessToken(
+		const accessToken = await exchangeCodeForTokens(
 			body.code,
 			body.redirectUri,
 			env.GOOGLE_CLIENT_ID,
 			env.GOOGLE_CLIENT_SECRET,
+			tx.codeVerifier,
 		);
 		const user = await fetchGoogleUser(accessToken);
 
@@ -40,7 +108,7 @@ export async function handleAuthCallback(request: Request, env: Env, ctx: Execut
 		if (!access.allowed) {
 			if (access.queueFull) {
 				// 佇列滿了：不寫入、不推播，避免被大量帳號灌爆
-				return jsonResponse({ error: "目前登入申請已達上限，請直接聯絡管理員。", pending: false }, 403);
+				return clearTx(jsonResponse({ error: "目前登入申請已達上限，請直接聯絡管理員。", pending: false }, 403));
 			}
 			// 第一次申請（不是 pending 中重試）→ 推播通知擁有者去審核
 			if (!access.pending) {
@@ -57,7 +125,7 @@ export async function handleAuthCallback(request: Request, env: Env, ctx: Execut
 			const message = access.pending
 				? "已送出登入申請，請等待管理員同意後再重新登入。"
 				: "已送出登入申請，請等待管理員同意。同意後請重新登入。";
-			return jsonResponse({ error: message, pending: true }, 403);
+			return clearTx(jsonResponse({ error: message, pending: true }, 403));
 		}
 
 		// 記下 Google 名字/大頭貼（只有變動時才寫），這樣「列出全家人」不用等對方上線
@@ -82,16 +150,16 @@ export async function handleAuthCallback(request: Request, env: Env, ctx: Execut
 			SESSION_TTL_SECONDS,
 		);
 
-		return withSessionCookie(
+		return withCookies(
 			jsonResponse({
 				user: { name: identity.name, avatar: identity.avatar, isOwner: owner, email: user.email.toLowerCase() },
 				expiresIn: SESSION_TTL_SECONDS,
 			}),
-			sessionCookie(token, SESSION_TTL_SECONDS),
+			[clearedOAuthTxCookie(), sessionCookie(token, SESSION_TTL_SECONDS)],
 		);
 	} catch (err) {
 		if (err instanceof GoogleOAuthError) {
-			return jsonResponse({ error: err.message }, 401);
+			return clearTx(jsonResponse({ error: err.message }, 401));
 		}
 		throw err;
 	}

@@ -14,6 +14,9 @@ export interface StoredSubscription {
 }
 
 const KEY_PREFIX = "sub:";
+export const MAX_SUBSCRIPTIONS_PER_USER = 5;
+export const MAX_TOTAL_SUBSCRIPTIONS = 30;
+const MAX_KV_METADATA_BYTES = 1000;
 
 export function subscriptionKey(endpoint: string): string {
 	return KEY_PREFIX + bytesToBase64Url(new TextEncoder().encode(endpoint));
@@ -27,18 +30,84 @@ export interface PushMessage {
 	icon?: string; // 通知縮圖，放觸發者的大頭貼（iOS 不支援自訂，固定顯示 App 圖示）
 }
 
-async function listAllSubscriptions(env: Env): Promise<{ key: string; value: StoredSubscription }[]> {
+function isStoredSubscriptionMetadata(meta: unknown): meta is StoredSubscription {
+	if (!meta || typeof meta !== "object") return false;
+	const m = meta as Partial<StoredSubscription>;
+	return (
+		typeof m.email === "string" &&
+		typeof m.name === "string" &&
+		typeof m.createdAt === "string" &&
+		typeof m.subscription === "object" &&
+		m.subscription !== null &&
+		typeof m.subscription.endpoint === "string" &&
+		typeof m.subscription.keys?.p256dh === "string" &&
+		typeof m.subscription.keys?.auth === "string"
+	);
+}
+
+function compareEntriesByAge(
+	a: { key: string; value: StoredSubscription },
+	b: { key: string; value: StoredSubscription },
+): number {
+	const timeDiff = (a.value.createdAt || "").localeCompare(b.value.createdAt || "");
+	return timeDiff !== 0 ? timeDiff : a.key.localeCompare(b.key);
+}
+
+export async function listAllSubscriptions(env: Env): Promise<{ key: string; value: StoredSubscription }[]> {
 	const results: { key: string; value: StoredSubscription }[] = [];
 	let cursor: string | undefined;
 	do {
 		const page = await env.PUSH_SUBS.list({ prefix: KEY_PREFIX, cursor });
 		for (const entry of page.keys) {
-			const value = await env.PUSH_SUBS.get<StoredSubscription>(entry.name, "json");
+			const value = isStoredSubscriptionMetadata(entry.metadata)
+				? entry.metadata
+				: await env.PUSH_SUBS.get<StoredSubscription>(entry.name, "json");
 			if (value) results.push({ key: entry.name, value });
 		}
 		cursor = page.list_complete ? undefined : page.cursor;
 	} while (cursor);
 	return results;
+}
+
+/**
+ * 儲存訂閱並執行雙重容量上限（每人最多 5 台裝置、全站最多 30 筆 KV 訂閱），
+ * 超額時淘汰最舊項目，確保群發推播永遠不會超過 Cloudflare Workers 50 次 subrequest 上限。
+ */
+export async function saveSubscription(env: Env, stored: StoredSubscription): Promise<void> {
+	const key = subscriptionKey(stored.subscription.endpoint);
+	const normalizedEmail = stored.email.toLowerCase();
+	const normalizedStored: StoredSubscription = { ...stored, email: normalizedEmail };
+
+	const existingAll = await listAllSubscriptions(env);
+	const others = existingAll.filter((entry) => entry.key !== key);
+	const keysToEvict = new Set<string>();
+
+	const userOthers = others.filter((entry) => entry.value.email.toLowerCase() === normalizedEmail).sort(compareEntriesByAge);
+	if (userOthers.length >= MAX_SUBSCRIPTIONS_PER_USER) {
+		const evictCount = userOthers.length - (MAX_SUBSCRIPTIONS_PER_USER - 1);
+		for (let i = 0; i < evictCount; i++) {
+			keysToEvict.add(userOthers[i].key);
+		}
+	}
+
+	const remainingOthers = others.filter((entry) => !keysToEvict.has(entry.key)).sort(compareEntriesByAge);
+	if (remainingOthers.length >= MAX_TOTAL_SUBSCRIPTIONS) {
+		const evictCount = remainingOthers.length - (MAX_TOTAL_SUBSCRIPTIONS - 1);
+		for (let i = 0; i < evictCount; i++) {
+			keysToEvict.add(remainingOthers[i].key);
+		}
+	}
+
+	if (keysToEvict.size > 0) {
+		await Promise.all([...keysToEvict].map((evictKey) => env.PUSH_SUBS.delete(evictKey)));
+	}
+
+	const serialized = JSON.stringify(normalizedStored);
+	const putOptions =
+		new TextEncoder().encode(serialized).byteLength <= MAX_KV_METADATA_BYTES
+			? { metadata: normalizedStored }
+			: undefined;
+	await env.PUSH_SUBS.put(key, serialized, putOptions);
 }
 
 async function sendTo(env: Env, entries: { key: string; value: StoredSubscription }[], message: PushMessage) {

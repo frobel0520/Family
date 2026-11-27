@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAuth } from "../auth/AuthContext";
 
 /**
@@ -8,24 +8,44 @@ import { useAuth } from "../auth/AuthContext";
  * so this can't be a HashRouter route; App.tsx detects the query param and
  * swaps this in before the router even mounts.
  */
+function readInitialOAuthParams(): {
+	code: string | null;
+	state: string | null;
+	initialError: string | null;
+} {
+	const params = new URLSearchParams(window.location.search);
+	if (params.get("error")) {
+		return { code: null, state: null, initialError: "已取消 Google 登入，請重新登入。" };
+	}
+	const code = params.get("code");
+	const state = params.get("state");
+	if (!code || !state) {
+		return { code: null, state: null, initialError: "Google 登入驗證參數不完整，請重新登入。" };
+	}
+	return { code, state, initialError: null };
+}
+
 export function AuthCallback({ onDone }: { onDone: () => void }) {
 	const { exchangeCode } = useAuth();
-	const [error, setError] = useState<string | null>(null);
+	const [initial] = useState(readInitialOAuthParams);
+	const [error, setError] = useState<string | null>(initial.initialError);
+	const started = useRef(false);
 
 	useEffect(() => {
-		const code = new URLSearchParams(window.location.search).get("code");
-		if (!code) {
-			setError("Google 沒有回傳授權碼，請重新登入。");
+		// Strip sensitive OAuth code & state from the browser URL immediately.
+		window.history.replaceState(null, "", `${window.location.pathname}#/`);
+
+		if (!initial.code || !initial.state || started.current) {
 			return;
 		}
+		started.current = true;
 
-		exchangeCode(code)
+		exchangeCode(initial.code, initial.state)
 			.then(() => {
-				window.history.replaceState(null, "", `${window.location.pathname}#/`);
 				onDone();
 			})
 			.catch((err: Error) => setError(err.message));
-	}, [exchangeCode, onDone]);
+	}, [exchangeCode, initial, onDone]);
 
 	if (error) {
 		return (
