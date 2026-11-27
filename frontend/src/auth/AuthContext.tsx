@@ -31,7 +31,7 @@ interface AuthContextValue {
 	login: () => void;
 	/** 先請 Worker 清掉 HttpOnly cookie，成功才清本機狀態；失敗會丟錯讓畫面提示。 */
 	logout: () => Promise<void>;
-	exchangeCode: (code: string) => Promise<void>;
+	exchangeCode: (code: string, state: string) => Promise<void>;
 	/** 更新個人資料後，後端會重簽 session（新暱稱/大頭貼立刻生效），用這個套用。 */
 	applySessionResponse: (data: SessionResponse) => void;
 }
@@ -77,12 +77,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 	}, []);
 
 	const exchangeCode = useCallback(
-		async (code: string) => {
+		async (code: string, state: string) => {
 			const response = await fetch("/api/auth/callback", {
 				method: "POST",
 				credentials: "same-origin",
 				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ code, redirectUri: getRedirectUri() }),
+				body: JSON.stringify({ code, state, redirectUri: getRedirectUri() }),
 			});
 
 			if (!response.ok) {

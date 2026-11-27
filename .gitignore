@@ -4,6 +4,7 @@ dist/
 .DS_Store
 Thumbs.db
 .claude/
+.agents/
 Recipe/
 
 # 前端 build 輸出（frontend → worker/public/Family，由 Worker static assets 提供）

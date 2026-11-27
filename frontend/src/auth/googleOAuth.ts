@@ -9,13 +9,15 @@ export function getRedirectUri(): string {
 	return `${window.location.origin}${import.meta.env.BASE_URL}`;
 }
 
+/**
+ * Initiates Google OAuth via the same-origin Worker endpoint so the Worker can
+ * generate cryptographic CSRF `state` + PKCE `S256` challenge in an HttpOnly cookie.
+ */
 export function buildAuthorizeUrl(): string {
-	const params = new URLSearchParams({
-		client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
-		redirect_uri: getRedirectUri(),
-		response_type: "code",
-		scope: "openid email profile",
-		prompt: "select_account",
-	});
-	return `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
+	return "/api/auth/start";
+}
+
+export function hasOAuthCallbackParams(search: string): boolean {
+	const params = new URLSearchParams(search);
+	return params.has("code") || params.has("error");
 }

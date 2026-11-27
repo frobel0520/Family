@@ -1,5 +1,6 @@
 import { requireSession } from "../session";
 import { readJsonArrayFile, updateJsonArrayFile, putBase64File } from "../github-contents";
+import { ImageUploadError, MAX_IMAGE_BYTES, validateBase64Image } from "../image-upload";
 import { jsonResponse } from "../response";
 import { isRecipeCategory } from "../recipe-categories";
 import { imageProxyUrl } from "../image-url";
@@ -13,12 +14,6 @@ interface Recipe {
 	recipeUpdatedAt?: string; // 食譜圖最後更新時間；前端拿來當快取破壞參數，換圖後才不會顯示舊圖
 	uploadedBy: string;
 	uploadedAt: string;
-}
-
-/** Frontend sends the photo as a data URL (e.g. "data:image/jpeg;base64,...") or plain base64. */
-function stripDataUrlPrefix(photo: string): string {
-	const match = photo.match(/^data:.*;base64,(.+)$/s);
-	return match ? match[1] : photo;
 }
 
 /** 存的是 repo 相對路徑，回前端轉成登入者才能用的簽章轉發網址。photoUrl 沒有 updatedAt（插畫不會換），
@@ -61,8 +56,17 @@ export async function handleCreateRecipe(request: Request, env: Env): Promise<Re
 
 	let recipeUrl: string | null = null;
 	if (body.recipeImageBase64 && typeof body.recipeImageBase64 === "string") {
+		let validatedBase64: string;
+		try {
+			validatedBase64 = validateBase64Image(body.recipeImageBase64, MAX_IMAGE_BYTES).base64;
+		} catch (err) {
+			if (err instanceof ImageUploadError) {
+				return jsonResponse({ error: err.message }, err.status);
+			}
+			throw err;
+		}
 		recipeUrl = `images/recipes/${recipeId}-recipe.jpg`;
-		await putBase64File(env, recipeUrl, stripDataUrlPrefix(body.recipeImageBase64), `recipes: recipe image for ${body.name}`);
+		await putBase64File(env, recipeUrl, validatedBase64, `recipes: recipe image for ${body.name}`);
 	}
 
 	const now = new Date().toISOString();
@@ -104,6 +108,16 @@ export async function handleUploadRecipeImage(request: Request, env: Env): Promi
 		return jsonResponse({ error: "Missing 'photoBase64'" }, 400);
 	}
 
+	let validatedBase64: string;
+	try {
+		validatedBase64 = validateBase64Image(body.photoBase64, MAX_IMAGE_BYTES).base64;
+	} catch (err) {
+		if (err instanceof ImageUploadError) {
+			return jsonResponse({ error: err.message }, err.status);
+		}
+		throw err;
+	}
+
 	const recipes = await readJsonArrayFile<Recipe>(env, "data/recipes.json");
 	const target = recipes.find((r) => r.id === body.id);
 	if (!target) {
@@ -111,18 +125,20 @@ export async function handleUploadRecipeImage(request: Request, env: Env): Promi
 	}
 
 	const recipeUrl = `images/recipes/${target.id}-recipe.jpg`;
-	await putBase64File(env, recipeUrl, stripDataUrlPrefix(body.photoBase64), `recipes: recipe image for ${target.name}`);
+	await putBase64File(env, recipeUrl, validatedBase64, `recipes: recipe image for ${target.name}`);
 
 	let updated: Recipe = target;
 	await updateJsonArrayFile<Recipe>(
 		env,
 		"data/recipes.json",
-		(list) =>
-			list.map((r) => {
+		(list) => {
+			updated = target;
+			return list.map((r) => {
 				if (r.id !== body.id) return r;
 				updated = { ...r, recipeUrl, recipeUpdatedAt: new Date().toISOString() };
 				return updated;
-			}),
+			});
+		},
 		`recipes: attach recipe image to "${target.name}" by ${auth.session.name}`,
 	);
 

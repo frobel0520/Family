@@ -1,6 +1,7 @@
 import { SESSION_TTL_SECONDS, requireSession } from "../session";
 import { jsonResponse } from "../response";
 import { putBase64File } from "../github-contents";
+import { ImageUploadError, MAX_AVATAR_BYTES, validateBase64Image } from "../image-upload";
 import { avatarPathForEmail, avatarProxyUrl, getProfile, upsertProfile } from "../profiles";
 import { signSession } from "../jwt";
 import { sessionCookie, withSessionCookie } from "../cookie";
@@ -78,9 +79,17 @@ export async function handleUpdateProfile(request: Request, env: Env): Promise<R
 	// 先傳圖（要是圖傳失敗，profiles.json 就不動）
 	let uploadedPath: string | undefined;
 	if (avatarAction && avatarAction !== "google") {
+		let validatedBase64: string;
+		try {
+			validatedBase64 = validateBase64Image(avatarAction.base64, MAX_AVATAR_BYTES).base64;
+		} catch (err) {
+			if (err instanceof ImageUploadError) {
+				return jsonResponse({ error: err.message }, err.status);
+			}
+			throw err;
+		}
 		uploadedPath = await avatarPathForEmail(email);
-		const base64 = avatarAction.base64.replace(/^data:.*;base64,/s, "");
-		await putBase64File(env, uploadedPath, base64, `profile: avatar for ${auth.session.name}`);
+		await putBase64File(env, uploadedPath, validatedBase64, `profile: avatar for ${auth.session.name}`);
 	}
 
 	const profile = await upsertProfile(env, email, (current) => ({

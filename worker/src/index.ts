@@ -1,4 +1,4 @@
-import { handleAuthCallback, handleAuthLogout, handleAuthRefresh } from "./routes/auth";
+import { handleAuthCallback, handleAuthLogout, handleAuthRefresh, handleAuthStart } from "./routes/auth";
 import { handleMe } from "./routes/me";
 import {
 	handleListBoardPosts,
@@ -28,6 +28,10 @@ import { requireSession } from "./session";
 
 async function route(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
 	const url = new URL(request.url);
+
+	if (request.method === "GET" && url.pathname === "/api/auth/start") {
+		return handleAuthStart(request, env);
+	}
 
 	if (request.method === "POST" && url.pathname === "/api/auth/callback") {
 		return handleAuthCallback(request, env, ctx);

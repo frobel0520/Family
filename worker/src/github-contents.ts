@@ -76,9 +76,11 @@ export async function readJsonFile<T>(env: Env, path: string, fallback: T): Prom
 	return existing ? JSON.parse(existing.text) : fallback;
 }
 
+const MAX_CONFLICT_RETRIES = 2;
+
 /**
  * Reads a JSON file (or starts from `fallback`), applies `mutate`, and commits the result.
- * v1 conflict policy is "last write wins" (per project plan) — no retry/merge logic.
+ * Retries up to 2 times on GitHub 409 SHA conflicts by re-reading the latest file & SHA.
  */
 export async function updateJsonFile<T>(
 	env: Env,
@@ -87,13 +89,20 @@ export async function updateJsonFile<T>(
 	mutate: (value: T) => T,
 	message: string,
 ): Promise<T> {
-	const existing = await getFile(env, path);
-	const value: T = existing ? JSON.parse(existing.text) : fallback;
-
-	const updated = mutate(value);
-	await putFile(env, path, JSON.stringify(updated, null, 2), message, existing?.sha);
-
-	return updated;
+	for (let attempt = 0; ; attempt++) {
+		const existing = await getFile(env, path);
+		const value: T = existing ? JSON.parse(existing.text) : structuredClone(fallback);
+		const updated = mutate(value);
+		try {
+			await putFile(env, path, JSON.stringify(updated, null, 2), message, existing?.sha);
+			return updated;
+		} catch (err) {
+			if (err instanceof GithubApiError && err.status === 409 && attempt < MAX_CONFLICT_RETRIES) {
+				continue;
+			}
+			throw err;
+		}
+	}
 }
 
 /** Reads a JSON array file for display. Empty array if the file doesn't exist yet. */
@@ -149,4 +158,28 @@ export async function putBase64File(env: Env, path: string, base64Content: strin
 	if (!response.ok) {
 		throw new GithubApiError(`Failed to write ${path}: ${response.status} ${await response.text()}`, response.status);
 	}
+}
+
+/** Deletes a file in the data repo if it exists. Returns false when already absent (404). */
+export async function deleteFileIfExists(env: Env, path: string, message: string): Promise<boolean> {
+	const { owner, repo } = repoParts(env);
+	const existing = await fetch(`${GITHUB_API}/repos/${owner}/${repo}/contents/${path}`, {
+		headers: apiHeaders(env),
+	});
+	if (existing.status === 404) return false;
+	if (!existing.ok) {
+		throw new GithubApiError(`Failed to read ${path}: ${existing.status} ${await existing.text()}`, existing.status);
+	}
+	const { sha } = (await existing.json()) as ContentsGetResponse;
+
+	const response = await fetch(`${GITHUB_API}/repos/${owner}/${repo}/contents/${path}`, {
+		method: "DELETE",
+		headers: { ...apiHeaders(env), "Content-Type": "application/json" },
+		body: JSON.stringify({ message, sha }),
+	});
+	if (response.status === 404) return false;
+	if (!response.ok) {
+		throw new GithubApiError(`Failed to delete ${path}: ${response.status} ${await response.text()}`, response.status);
+	}
+	return true;
 }
