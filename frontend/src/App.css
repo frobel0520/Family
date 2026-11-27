@@ -1027,6 +1027,50 @@
 	background: linear-gradient(154deg, var(--accent-soft), color-mix(in srgb, var(--accent-soft) 35%, var(--card)));
 }
 
+.install-prompt {
+	padding: 0.3rem 0.8rem;
+}
+
+.install-prompt__actions {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.5rem;
+}
+
+.install-prompt__toggle {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.35rem;
+	min-height: 44px;
+	padding: 0;
+	border: 0;
+	background: transparent;
+	color: var(--text-h);
+	font-weight: 700;
+	text-align: left;
+}
+
+.install-prompt__toggle::after {
+	content: "";
+	width: 0.4em;
+	height: 0.4em;
+	margin-inline-start: 0.15em;
+	border-right: 1px solid currentColor;
+	border-bottom: 1px solid currentColor;
+	transform: rotate(45deg);
+}
+
+.install-prompt__toggle[aria-expanded="true"]::after {
+	transform: rotate(225deg);
+}
+
+.install-prompt .setup-card-later {
+	min-height: 44px;
+	margin: 0;
+	white-space: nowrap;
+}
+
 .setup-card p {
 	margin: 0 0 0.7rem;
 	color: var(--text);

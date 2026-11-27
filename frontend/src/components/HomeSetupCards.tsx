@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { useAuth } from "../auth/AuthContext";
 import { detectPlatform, isIosNonSafari, isStandalone, useInstallPrompt } from "../install";
 import { enablePush, getCurrentSubscription, pushSupported } from "../push";
@@ -33,6 +33,8 @@ function InstallCard() {
 	const [platform] = useState(detectPlatform);
 	const [installed] = useState(isStandalone);
 	const [dismissed, setDismissed] = useState(readDismissed);
+	const [expanded, setExpanded] = useState(false);
+	const instructionsId = useId();
 	const [error, setError] = useState<string | null>(null);
 
 	// 電腦版不主動提示；已從主畫面開啟或按過稍後再說也不顯示。
@@ -54,57 +56,67 @@ function InstallCard() {
 	}
 
 	return (
-		<section className="install-section setup-card">
-			<h2>
-				<PhoneIcon />
-				把 Family 加到手機主畫面
-			</h2>
-			{platform === "android" && installEvent && (
-				<>
-					<p>點下面的按鈕，再按「安裝」就完成了。</p>
-					<button type="button" className="setup-card-primary" onClick={install}>
-						<DownloadIcon />
-						一鍵安裝
-					</button>
-				</>
-			)}
-			{platform === "android" && !installEvent && (
-				<ol>
-					<li>
-						點右上角 <strong>⋮ 選單</strong>
-					</li>
-					<li>
-						點 <strong>「加到主畫面」</strong>（或「安裝應用程式」）
-					</li>
-					<li>
-						按 <strong>「安裝」</strong>
-					</li>
-				</ol>
-			)}
-			{platform === "ios" && isIosNonSafari() && (
-				<p>
-					現在不是用 Safari 開的，沒辦法加到主畫面。請點右下角或右上角的選單，選 <strong>「用 Safari 開啟」</strong>
-					，再照畫面提示加入主畫面。
-				</p>
-			)}
-			{platform === "ios" && !isIosNonSafari() && (
-				<ol>
-					<li>
-						點畫面下方的 <strong>分享按鈕</strong>（方框加向上箭頭）
-					</li>
-					<li>
-						往下滑，點 <strong>「加入主畫面」</strong>
-					</li>
-					<li>
-						右上角按 <strong>「新增」</strong>
-					</li>
-				</ol>
-			)}
-			<p className="hint">加好之後，之後都從主畫面的 Family 圖示打開；舊的 Family 圖示可以長按刪掉。</p>
-			{error && <p className="error">{error}</p>}
-			<button type="button" className="setup-card-later" onClick={dismiss}>
-				稍後再說
-			</button>
+		<section className="install-section setup-card install-prompt">
+			<div className="install-prompt__actions">
+				<button
+					type="button"
+					className="install-prompt__toggle"
+					aria-expanded={expanded}
+					aria-controls={instructionsId}
+					onClick={() => setExpanded((open) => !open)}
+				>
+					<PhoneIcon />
+					安裝到主畫面
+				</button>
+				<button type="button" className="setup-card-later" onClick={dismiss}>
+					稍後再說
+				</button>
+			</div>
+			<div id={instructionsId} hidden={!expanded}>
+				{platform === "android" && installEvent && (
+					<>
+						<p>點下面的按鈕，再按「安裝」就完成了。</p>
+						<button type="button" className="setup-card-primary" onClick={install}>
+							<DownloadIcon />
+							一鍵安裝
+						</button>
+					</>
+				)}
+				{platform === "android" && !installEvent && (
+					<ol>
+						<li>
+							點右上角 <strong>⋮ 選單</strong>
+						</li>
+						<li>
+							點 <strong>「加到主畫面」</strong>（或「安裝應用程式」）
+						</li>
+						<li>
+							按 <strong>「安裝」</strong>
+						</li>
+					</ol>
+				)}
+				{platform === "ios" && isIosNonSafari() && (
+					<p>
+						現在不是用 Safari 開的，沒辦法加到主畫面。請點右下角或右上角的選單，選 <strong>「用 Safari 開啟」</strong>
+						，再照畫面提示加入主畫面。
+					</p>
+				)}
+				{platform === "ios" && !isIosNonSafari() && (
+					<ol>
+						<li>
+							點畫面下方的 <strong>分享按鈕</strong>（方框加向上箭頭）
+						</li>
+						<li>
+							往下滑，點 <strong>「加入主畫面」</strong>
+						</li>
+						<li>
+							右上角按 <strong>「新增」</strong>
+						</li>
+					</ol>
+				)}
+				<p className="hint">加好之後，之後都從主畫面的 Family 圖示打開；舊的 Family 圖示可以長按刪掉。</p>
+				{error && <p className="error">{error}</p>}
+			</div>
 		</section>
 	);
 }
