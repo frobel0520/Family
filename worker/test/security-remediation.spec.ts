@@ -558,4 +558,49 @@ describe("Base64 image validator, board delete cleanup, and 409 SHA conflict ret
 		expect(putCount).toBe(3); // 1 initial + 2 retries
 		expect(updated).toEqual(["item-3", "new-item"]);
 	});
+
+	it("strips EXIF/XMP/comment metadata from JPEG, PNG, and WebP uploads while preserving image bytes", () => {
+		// JPEG with JFIF (APP0, kept), EXIF GPS (APP1, dropped), COM (0xFE, dropped), SOS + scan + EOI
+		const jpegWithExif = new Uint8Array([
+			0xff, 0xd8, // SOI
+			0xff, 0xe0, 0x00, 0x06, 0x4a, 0x46, 0x49, 0x46, // APP0 JFIF (keep)
+			0xff, 0xe1, 0x00, 0x0c, 0x45, 0x78, 0x69, 0x66, 0x00, 0x00, 0x47, 0x50, 0x53, 0x21, // APP1 Exif GPS! (drop)
+			0xff, 0xfe, 0x00, 0x05, 0x68, 0x69, 0x21, // COM "hi!" (drop)
+			0xff, 0xda, 0x00, 0x04, 0x01, 0x00, 0xaa, 0xff, 0x00, 0xbb, // SOS + stuffed 0xFF00 scan data
+			0xff, 0xd9, // EOI
+		]);
+		const validatedJpeg = validateBase64Image(bytesToBase64(jpegWithExif));
+		expect(validatedJpeg.mimeType).toBe("image/jpeg");
+		const outJpeg = Uint8Array.from(atob(validatedJpeg.base64), (c) => c.charCodeAt(0));
+		const outJpegAscii = String.fromCharCode(...outJpeg);
+		expect(outJpegAscii).toContain("JFIF");
+		expect(outJpegAscii).not.toContain("Exif");
+		expect(outJpegAscii).not.toContain("GPS!");
+		expect(outJpegAscii).not.toContain("hi!");
+		expect(outJpeg.slice(-2)).toEqual(new Uint8Array([0xff, 0xd9]));
+
+		// PNG with IHDR (keep), eXIf (drop), tEXt (drop), IEND (keep)
+		const pngChunk = (type: string, data: number[]) => {
+			const len = data.length;
+			return [
+				(len >>> 24) & 0xff, (len >>> 16) & 0xff, (len >>> 8) & 0xff, len & 0xff,
+				type.charCodeAt(0), type.charCodeAt(1), type.charCodeAt(2), type.charCodeAt(3),
+				...data,
+				0x00, 0x00, 0x00, 0x00, // dummy CRC
+			];
+		};
+		const pngWithMeta = new Uint8Array([
+			0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+			...pngChunk("IHDR", [0, 0, 0, 1, 0, 0, 0, 1, 8, 2, 0, 0, 0]),
+			...pngChunk("eXIf", [0x4d, 0x4d, 0x00, 0x2a]),
+			...pngChunk("tEXt", [0x47, 0x50, 0x53, 0x00, 0x32, 0x35]),
+			...pngChunk("IEND", []),
+		]);
+		const validatedPng = validateBase64Image(bytesToBase64(pngWithMeta));
+		const outPngAscii = atob(validatedPng.base64);
+		expect(outPngAscii).toContain("IHDR");
+		expect(outPngAscii).toContain("IEND");
+		expect(outPngAscii).not.toContain("eXIf");
+		expect(outPngAscii).not.toContain("tEXt");
+	});
 });
